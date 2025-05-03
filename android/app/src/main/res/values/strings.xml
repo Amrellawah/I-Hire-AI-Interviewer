@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">I Hire</string>
+    <string name="title_activity_main">I Hire</string>
+    <string name="package_name">com.ihire.app</string>
+    <string name="custom_url_scheme">com.ihire.app</string>
+</resources>

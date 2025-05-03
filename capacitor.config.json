@@ -1,0 +1,9 @@
+{
+  "appId": "com.ihire.app",
+  "appName": "I Hire",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "http",
+    "hostname": "localhost"
+  }
+}
