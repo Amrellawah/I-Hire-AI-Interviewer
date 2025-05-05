@@ -59,3 +59,63 @@ export async function chatSession(prompt, interviewType, jobPosition = "", caree
 
   return response.choices[0].message.content;
 }
+
+export async function transcribeAudio(audioBlob, languageMode = 'auto') {
+  try {
+    const audioFile = new File([audioBlob], 'recording.webm', {
+      type: 'audio/webm'
+    });
+
+    const params = {
+      file: audioFile,
+      model: 'whisper-1',
+      response_format: 'json',
+      prompt: 'This audio contains multiple languages. Transcribe each language as-is without translation.'
+    };
+
+    // Only specify language if not in auto mode
+    if (languageMode !== 'auto') {
+      params.language = languageMode;
+    }
+
+    const transcription = await openai.audio.transcriptions.create(params);
+    
+    return {
+      text: transcription.text,
+      detectedLanguage: transcription.language || languageMode
+    };
+  } catch (error) {
+    console.error('Transcription error:', error);
+    throw new Error(`Failed to transcribe (${languageMode}): ${error.message}`);
+  }
+}
+
+
+export async function generateAudioFeedback(audioBlob, question, interviewType) {
+  try {
+    // First transcribe the audio
+    const transcription = await transcribeAudio(audioBlob);
+    
+    // Then generate feedback using chatSession
+    const feedbackPrompt = `
+      Analyze this interview response:
+
+      Question: ${question}
+      Answer: ${transcription}
+
+      Provide JSON response with:
+      - "rating": number (1-10)
+      - "feedback": string (constructive feedback)
+      - "suggestions": string[] (3 improvement suggestions)
+    `;
+
+    const feedback = await chatSession(feedbackPrompt, interviewType);
+    return {
+      transcription,
+      feedback: JSON.parse(feedback.replace(/```json|```/g, '').trim())
+    };
+  } catch (error) {
+    console.error("Audio feedback generation failed", error);
+    throw error;
+  }
+}
