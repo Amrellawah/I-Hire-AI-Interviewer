@@ -2,34 +2,80 @@
 import { UserButton } from '@clerk/nextjs'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import React, { useEffect } from 'react'
+import Link from 'next/link'
+import { useEffect, useState } from 'react'
 
 function Header() {
+    const path = usePathname();
+    const [scrolled, setScrolled] = useState(false)
 
-    const path=usePathname();
-    useEffect(()=>{
+    useEffect(() => {
         console.log(path)
+        const handleScroll = () => {
+            if (window.scrollY > 10) {
+                setScrolled(true)
+            } else {
+                setScrolled(false)
+            }
+        }
+        window.addEventListener('scroll', handleScroll)
+        return () => window.removeEventListener('scroll', handleScroll)
     }, [])
 
-  return (
-    <div className='flex p-4 items-center justify-between bg-secondary shadow-sm' style={{ backgroundColor: '#FBF1EE'}}>
-        <div className="flex items-center gap-4">
-          {/* Logo */}
-          <Image src={'/logo.png'} width={60} height={100} alt='logo' />
-          
-          {/* Company Name */}
-          <span className="text-xl font-bold">I-Hire</span>
-        </div>
-        <ul className='hidden md:flex gap-6'>
-            <li className={`hover:text-primary hover:font-bold cursor-pointer ${path=='/dashboard'&&'text-primary font-bold'}`}>Dashboard</li>
-            <li className={`hover:text-primary hover:font-bold cursor-pointer ${path=='/dashboard/questions'&&'text-primary font-bold'}`}>Questions</li>
-            <li className={`hover:text-primary hover:font-bold cursor-pointer ${path=='/dashboard/upgrade'&&'text-primary font-bold'}`}>Upgrade</li>
-            <li className={`hover:text-primary hover:font-bold cursor-pointer ${path=='/dashboard/how'&&'text-primary font-bold'}`}>How it works?</li>
+    return (
+      <div className="pt-[70px] ">
+        <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'py-2 shadow-lg' : 'py-4 shadow-sm'}`} 
+                style={{ backgroundColor: '#FBF1EE' }}>
+            <div className="container mx-auto px-4 flex items-center justify-between">
+                <Link href="/" className="flex items-center gap-4 group">
+                    {/* Logo with hover effect */}
+                    <div className={`transition-all duration-300 ${scrolled ? 'w-12 h-12' : 'w-14 h-14'}`}>
+                        <Image 
+                            src={'/logo.png'} 
+                            width={scrolled ? 48 : 56} 
+                            height={scrolled ? 48 : 56} 
+                            alt='logo'
+                            className="group-hover:scale-105 transition-transform duration-300"
+                        />
+                    </div>
+                    
+                    {/* Company Name with hover effect */}
+                    <span className={`text-xl font-bold bg-gradient-to-r from-[#be3144] to-[#f05941] bg-clip-text text-transparent transition-all duration-300 ${scrolled ? 'text-2xl' : 'text-3xl'}`}>
+                        I-Hire
+                    </span>
+                </Link>
 
-        </ul>
-        <UserButton/>
-    </div>
-  )
+                {/* Navigation Links - Add your routes here */}
+                <nav className="hidden md:flex items-center gap-8">
+                    <Link href="/dashboard" className={`font-medium transition-colors duration-300 hover:text-[#be3144] ${path === '/dashboard' ? 'text-[#be3144]' : 'text-gray-700'}`}>
+                        Dashboard
+                    </Link>
+                    <Link href="/candidates" className={`font-medium transition-colors duration-300 hover:text-[#be3144] ${path === '/candidates' ? 'text-[#be3144]' : 'text-gray-700'}`}>
+                        Candidates
+                    </Link>
+                    <Link href="/interviews" className={`font-medium transition-colors duration-300 hover:text-[#be3144] ${path === '/interviews' ? 'text-[#be3144]' : 'text-gray-700'}`}>
+                        Interviews
+                    </Link>
+                </nav>
+
+                {/* User Button with better styling */}
+                <div className="flex items-center gap-4">
+                    <UserButton 
+                        afterSignOutUrl="/"
+                        appearance={{
+                            elements: {
+                                avatarBox: "w-10 h-10",
+                                userButtonPopoverCard: "shadow-lg border border-gray-200",
+                                userPreviewAvatarBox: "w-12 h-12"
+                            }
+                        }}
+                    />
+                </div>
+            </div>
+        </header>
+        </div>
+
+    )
 }
 
 export default Header

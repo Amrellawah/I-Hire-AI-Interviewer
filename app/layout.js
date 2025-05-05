@@ -17,7 +17,7 @@ const geistMono = localFont({
 export const metadata = {
   title: "I-Hire",
   icons: {
-    icon: "/logo.png", // or /favicon.svg
+    icon: "/logo.png",
   },
   description: "I-Hire - AI-Powered Hiring Platform",
 };

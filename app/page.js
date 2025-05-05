@@ -1,4 +1,4 @@
-import Header from "@/components/Header";
+import Header from "@/app/dashboard/_components/Header";
 import HeroSection from "@/components/HeroSection";
 import WhyAISection from "@/components/WhyAISection";
 import CtaSection from "@/components/CtaSection";
