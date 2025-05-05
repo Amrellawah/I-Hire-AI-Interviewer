@@ -89,3 +89,33 @@ export async function transcribeAudio(audioBlob, languageMode = 'auto') {
     throw new Error(`Failed to transcribe (${languageMode}): ${error.message}`);
   }
 }
+
+
+export async function generateAudioFeedback(audioBlob, question, interviewType) {
+  try {
+    // First transcribe the audio
+    const transcription = await transcribeAudio(audioBlob);
+    
+    // Then generate feedback using chatSession
+    const feedbackPrompt = `
+      Analyze this interview response:
+
+      Question: ${question}
+      Answer: ${transcription}
+
+      Provide JSON response with:
+      - "rating": number (1-10)
+      - "feedback": string (constructive feedback)
+      - "suggestions": string[] (3 improvement suggestions)
+    `;
+
+    const feedback = await chatSession(feedbackPrompt, interviewType);
+    return {
+      transcription,
+      feedback: JSON.parse(feedback.replace(/```json|```/g, '').trim())
+    };
+  } catch (error) {
+    console.error("Audio feedback generation failed", error);
+    throw error;
+  }
+}
