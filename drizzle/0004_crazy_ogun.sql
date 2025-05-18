@@ -1,0 +1,2 @@
+ALTER TABLE "CallInterviewFeedback" ADD CONSTRAINT "CallInterviewFeedback_job_id_CallInterview_job_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."CallInterview"("job_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "CallInterview" ADD CONSTRAINT "CallInterview_job_id_unique" UNIQUE("job_id");

@@ -1,4 +1,5 @@
 import { pgTable, text, serial, varchar, boolean, jsonb, timestamp, json } from "drizzle-orm/pg-core";
+import { relations } from 'drizzle-orm';
 
 export const MockInterview = pgTable('mockInterview', {
   id: serial('id').primaryKey(),
@@ -36,7 +37,7 @@ export const callInterview = pgTable('CallInterview', {
   questionList: jsonb('questionList'),
   recruiterName: varchar('recruiterName', { length: 255 }),
   recruiterEmail: varchar('recruiterEmail', { length: 255 }),
-  job_id: varchar('job_id', { length: 255 }),
+  job_id: varchar('job_id', { length: 255 }).unique(), // Added .unique() here
   createdAt: timestamp('createdAt').defaultNow(),
 });
 
@@ -44,8 +45,18 @@ export const callInterviewFeedback = pgTable('CallInterviewFeedback', {
   id: serial('id').primaryKey(),
   userName: varchar('userName', { length: 255 }).notNull(),
   userEmail: varchar('userEmail', { length: 255 }).notNull(),
-  job_id: varchar('job_id', { length: 255 }).notNull(),
+  job_id: varchar('job_id', { length: 255 }).notNull().references(() => callInterview.job_id),
   feedback: json('feedback').notNull(),
   recommended: boolean('recommended').notNull()
 });
 
+export const callInterviewRelations = relations(callInterview, ({ many }) => ({
+  feedback: many(callInterviewFeedback),
+}));
+
+export const callInterviewFeedbackRelations = relations(callInterviewFeedback, ({ one }) => ({
+  interview: one(callInterview, {
+    fields: [callInterviewFeedback.job_id],
+    references: [callInterview.job_id],
+  }),
+}));
