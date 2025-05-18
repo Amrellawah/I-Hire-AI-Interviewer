@@ -1,14 +1,19 @@
+"use client"
 import React from 'react'
-import Header from './_components/Header'
-
-function DashboardLayout({children}) {
+import Head from 'next/head'
+function DashboardLayout({ children }) {
   return (
-    <div style={{ backgroundColor: '#FBF1EE', minHeight: '100vh' }}>
-        <Header/>
-        <div className='mx-5 md:mx-20 lg:mx-36'>
+    <>
+      <Head>
+        <title>I-Hire Dashboard</title>
+        <meta name="description" content="AI-powered interview platform" />
+      </Head>
+            
+      <div>
         {children}
-        </div>
-    </div>
+      </div>
+
+    </>
   )
 }
 

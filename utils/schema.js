@@ -1,4 +1,4 @@
-import { pgTable, text, serial, varchar, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, varchar, boolean, jsonb, timestamp, json } from "drizzle-orm/pg-core";
 
 export const MockInterview = pgTable('mockInterview', {
   id: serial('id').primaryKey(),
@@ -19,10 +19,33 @@ export const UserAnswer = pgTable('userAnswer', {
   userAns: text('userAns'),
   feedback: text('feedback'),
   rating: varchar('rating'),
-  suggestions: text('suggestions'), // ⬅️ Added this!
+  suggestions: text('suggestions'), 
   userEmail: varchar('userEmail'),
   createdAt: varchar('createdAt'),
-  needsFollowUp: boolean('needsFollowUp').default(false), // ⬅️ Added this!
+  needsFollowUp: boolean('needsFollowUp').default(false), 
   reason: text('reason'),
   suggestedFollowUp: varchar('suggestedFollowUp')
 });
+
+export const callInterview = pgTable('CallInterview', {
+  id: serial('id').primaryKey(),
+  jobPosition: varchar('jobPosition', { length: 255 }),
+  jobDescription: varchar('jobDescription', { length: 255 }),
+  duration: varchar('duration', { length: 100 }),
+  type: varchar('type', { length: 100 }),
+  questionList: jsonb('questionList'),
+  recruiterName: varchar('recruiterName', { length: 255 }),
+  recruiterEmail: varchar('recruiterEmail', { length: 255 }),
+  job_id: varchar('job_id', { length: 255 }),
+  createdAt: timestamp('createdAt').defaultNow(),
+});
+
+export const callInterviewFeedback = pgTable('CallInterviewFeedback', {
+  id: serial('id').primaryKey(),
+  userName: varchar('userName', { length: 255 }).notNull(),
+  userEmail: varchar('userEmail', { length: 255 }).notNull(),
+  job_id: varchar('job_id', { length: 255 }).notNull(),
+  feedback: json('feedback').notNull(),
+  recommended: boolean('recommended').notNull()
+});
+

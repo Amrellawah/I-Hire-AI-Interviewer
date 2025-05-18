@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { chatSession } from "@/utils/OpenAIModel";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, Video } from "lucide-react";
 import { MockInterview } from "@/utils/schema";
 import { v4 as uuidv4 } from "uuid";
 import { useUser } from "@clerk/nextjs";
@@ -272,10 +272,12 @@ export default function AddNewInterview() {
   return (
     <div>
       <div
-        className="p-10 border rounded-lg bg-secondary hover:scale-105 hover:shadow-md cursor-pointer transition-all"
+        className='bg-white border-gray-200 rounded-lg p-5'
         onClick={() => setOpenDialog(true)}
       >
-        <h2 className="text-lg text-center">+ Add New AI Interview</h2>
+          <Video className='p-3 text-primary bg-red-100 rounded-lg h-12 w-12 flex flex-col gap-2'/>
+          <h2 className='font-bold'>Create New Job</h2>
+          <p className='text-gray-500'>Create AI Interviews and schedule them with Candidates</p>      
       </div>
 
       <Dialog

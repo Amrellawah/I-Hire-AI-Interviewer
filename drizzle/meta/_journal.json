@@ -15,6 +15,20 @@
       "when": 1745759374437,
       "tag": "0001_fast_the_captain",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1747272748399,
+      "tag": "0002_amused_raider",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1747491017306,
+      "tag": "0003_dizzy_major_mapleleaf",
+      "breakpoints": true
     }
   ]
 }

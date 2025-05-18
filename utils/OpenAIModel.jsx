@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
@@ -70,7 +71,7 @@ export async function transcribeAudio(audioBlob, languageMode = 'auto') {
       file: audioFile,
       model: 'whisper-1',
       response_format: 'json',
-      prompt: 'This audio contains multiple languages. Transcribe each language as-is without translation.'
+      prompt: 'This is a multilingual conversation. Transcribe exactly what you hear in the original language(s) without translation. Maintain code-switching between languages as spoken.'
     };
 
     // Only specify language if not in auto mode
@@ -119,3 +120,4 @@ export async function generateAudioFeedback(audioBlob, question, interviewType) 
     throw error;
   }
 }
+
