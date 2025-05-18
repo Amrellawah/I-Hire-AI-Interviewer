@@ -2,8 +2,6 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "sonner";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import AppLayoutWrapper from "./AppLayoutWrapper"; // NEW wrapper component
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -27,14 +25,11 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <ClerkProvider>
-      <html lang="en">
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-          <Toaster />
-          <SidebarProvider>
-            <AppLayoutWrapper>{children}</AppLayoutWrapper>
-          </SidebarProvider>
-        </body>
-      </html>
+    <html lang="en">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <Toaster/>
+        {children}</body>
+    </html>
     </ClerkProvider>
   );
 }

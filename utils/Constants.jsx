@@ -14,7 +14,7 @@ export const SideBarOptions = [
     {
         name: 'All Interview',
         icon: List,
-        path:'/all-interview'
+        path:'/dashboard/all-interview'
     },
     {
         name: 'Billing',

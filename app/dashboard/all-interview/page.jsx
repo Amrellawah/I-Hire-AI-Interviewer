@@ -5,7 +5,7 @@ import { callInterview } from '@/utils/schema';
 import { useUser } from '@clerk/nextjs';
 import { Video } from 'lucide-react';
 import React, { useEffect, useState } from 'react'
-import CallInterviewCard from '../dashboard/_components/CallInterviewCard';
+import CallInterviewCard from '../_components/CallInterviewCard';
 import { desc, eq } from 'drizzle-orm';
 
 
