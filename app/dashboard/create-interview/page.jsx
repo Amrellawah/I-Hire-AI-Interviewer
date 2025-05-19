@@ -7,50 +7,120 @@ import FormContainer from './_components/FormContainer';
 import QuestionList from './_components/QuestionList';
 import { toast } from 'sonner';
 import InterviewLink from './_components/InterviewLink';
+import { motion, AnimatePresence } from 'framer-motion';
 
 function CreateInterview() {
     const router = useRouter();
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({});
-    const [jobId,setJobId] = useState();
+    const [jobId, setJobId] = useState();
+    const [isTransitioning, setIsTransitioning] = useState(false);
 
     const onHandleInputChange = (field, value) => {
         setFormData(prev => ({
             ...prev,
             [field]: value
         }));
-
-        console.log("FormData", formData)
     }
 
-    const onGoToNext=()=>{
-        if(!formData?.jobPosition||!formData?.jobDescription||!formData?.duration||!formData?.type)
-        {
-            toast('Please enter all details!')
+    const onGoToNext = () => {
+        if (!formData?.jobPosition || !formData?.jobDescription || !formData?.duration || !formData?.type) {
+            toast.error('Please complete all required fields!', {
+                description: 'All fields are necessary to generate the best interview questions.',
+                position: 'top-center'
+            });
             return;
         }
-        setStep(step+1);
+        handleStepChange(step + 1);
     }
 
-    const onCreateLink=(job_id)=>{
+    const onCreateLink = (job_id) => {
         setJobId(job_id);
-        setStep(step+1);
+        handleStepChange(step + 1);
     }
+
+    const handleStepChange = (newStep) => {
+        setIsTransitioning(true);
+        setTimeout(() => {
+            setStep(newStep);
+            setIsTransitioning(false);
+        }, 300);
+    }
+
+    const stepTitles = [
+        "Enter Interview Details",
+        "Review Questions",
+        "Share Interview Link"
+    ];
+
+    const progressColors = [
+        "bg-red-200",
+        "bg-red-200",
+        "bg-green-500"
+    ];
 
     return (
-        <div className='mt-5 px-10 md:px-24 lg:px-44 xl:px-56'>
-            <div className='flex gap-5 items-center'>
-                <ArrowLeft onClick={() => router.back()} className='cursor-pointer hover:text-black transition' />
-                <h2 className='font-bold text-2xl'>Create New Interview</h2>
+        <div className='mt-8 px-4 sm:px-8 md:px-12 lg:px-24 xl:px-36 2xl:px-48'>
+            <div className='flex gap-4 items-center mb-6'>
+                <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => router.back()}
+                    className='p-2 rounded-full hover:bg-gray-100 transition-colors'
+                    aria-label="Go back"
+                >
+                    <ArrowLeft className='h-5 w-5 text-gray-600' />
+                </motion.button>
+                <div>
+                    <h2 className='font-bold text-2xl sm:text-3xl text-gray-800'>Create New Interview</h2>
+                    <p className='text-sm text-gray-500 mt-1'>{stepTitles[step - 1]}</p>
+                </div>
             </div>
-            <Progress value={step * 33.33} className='my-5' />
-            {step == 1 ?<FormContainer 
-            onHandleInputChange={onHandleInputChange}
-            GoToNext={() => onGoToNext()} />
-            :step == 2 ? <QuestionList formData={formData} onCreateLink={(job_id)=>onCreateLink(job_id)} /> 
-            :step == 3 ? <InterviewLink job_id={jobId}
-            formData={formData}
-            /> : null}
+
+            <div className='mb-8'>
+                <Progress 
+                    value={step * 33.33} 
+                    className={`h-2 transition-all duration-500 ${progressColors[step - 1]}`}
+                />
+                <div className='flex justify-between mt-2 text-xs text-gray-500'>
+                    <span>Step {step} of 3</span>
+                    <span>{Math.round(step * 33.33)}% complete</span>
+                </div>
+            </div>
+
+            <AnimatePresence mode='wait'>
+                {!isTransitioning && (
+                    <motion.div
+                        key={step}
+                        initial={{ opacity: 0, x: step > 1 ? 20 : -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: step > 1 ? -20 : 20 }}
+                        transition={{ duration: 0.3 }}
+                        className='mb-10'
+                    >
+                        {step === 1 && (
+                            <FormContainer 
+                                onHandleInputChange={onHandleInputChange}
+                                GoToNext={onGoToNext} 
+                            />
+                        )}
+                        {step === 2 && (
+                            <QuestionList 
+                                formData={formData} 
+                                onCreateLink={onCreateLink} 
+                                onBack={() => handleStepChange(step - 1)}
+                            />
+                        )}
+                        {step === 3 && (
+                            <InterviewLink 
+                                job_id={jobId}
+                                formData={formData}
+                                onBack={() => handleStepChange(step - 1)}
+                            />
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
