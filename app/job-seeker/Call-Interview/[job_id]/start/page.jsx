@@ -2,7 +2,7 @@
 import { InterviewDataContext } from '@/app/context/InterviewDataContext'
 import { Loader2Icon, Mic, Phone, Timer } from 'lucide-react';
 import Image from 'next/image';
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useEffect, useState, useRef } from 'react'
 import Vapi from "@vapi-ai/web";
 import { toast } from 'sonner';
 import { db } from '@/utils/db';
@@ -13,22 +13,75 @@ import { callInterviewFeedback } from '@/utils/schema';
 
 function StartInterview() {
     const { interviewInfo, setInterviewInfo } = useContext(InterviewDataContext);
-    const vapi = new Vapi(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY);
+    const vapiRef = useRef(null);
     const [activeUser, setActiveUser] = useState(false);
     const [conversation, setConversation] = useState();
     const [callEnd, setCallEnd] = useState(false);
+    const [isMuted, setIsMuted] = useState(false);
     const { job_id } = useParams();
     const router = useRouter();
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (interviewInfo) {
+        // Initialize VAPI client
+        vapiRef.current = new Vapi(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY);
+
+        const handleMessage = (message) => {
+            if (message?.conversation) {
+                const convoString = JSON.stringify(message.conversation);
+                setConversation(convoString);
+            }
+        };
+
+        const callStartHandler = () => {
+            toast('Call Connected...');
+        };
+
+        const speechStartHandler = () => {
+            setActiveUser(false);
+        };
+
+        const speechEndHandler = () => {
+            setActiveUser(true);
+        };
+
+        const callEndHandler = () => {
+            toast('Interview Ended');
+            setCallEnd(true);
+            GenerateFeedback();
+        };
+
+        vapiRef.current.on("message", handleMessage);
+        vapiRef.current.on("call-start", callStartHandler);
+        vapiRef.current.on("speech-start", speechStartHandler);
+        vapiRef.current.on("speech-end", speechEndHandler);
+        vapiRef.current.on("call-end", callEndHandler);
+
+        return () => {
+            // Clean up event listeners
+            if (vapiRef.current) {
+                vapiRef.current.off("message", handleMessage);
+                vapiRef.current.off("call-start", callStartHandler);
+                vapiRef.current.off("speech-start", speechStartHandler);
+                vapiRef.current.off("speech-end", speechEndHandler);
+                vapiRef.current.off("call-end", callEndHandler);
+                
+                // Stop the call if component unmounts
+                if (!callEnd) {
+                    vapiRef.current.stop();
+                }
+            }
+        };
+    }, [callEnd]);
+
+    useEffect(() => {
+        if (interviewInfo && vapiRef.current) {
             startCall();
         }
     }, [interviewInfo])
 
     const startCall = () => {
-        if (!interviewInfo) {
+        if (!interviewInfo || !vapiRef.current) {
             toast.error('Interview information is not available');
             return;
         }
@@ -84,54 +137,29 @@ Key Guidelines:
             },
         };
 
-        vapi.start(assistantOptions);
+        vapiRef.current.start(assistantOptions);
     }
 
-    const stopInterview = () => {
-        vapi.stop();
-        setCallEnd(true);
-        GenerateFeedback();
-    }
-
-    useEffect(() => {
-        const handleMessage = (message) => {
-            if (message?.conversation) {
-                const convoString = JSON.stringify(message.conversation);
-                setConversation(convoString);
-            }
-        };
-
-        const callStartHandler = () => {
-            toast('Call Connected...');
-        };
-
-        const speechStartHandler = () => {
-            setActiveUser(false);
-        };
-
-        const speechEndHandler = () => {
-            setActiveUser(true);
-        };
-
-        const callEndHandler = () => {
-            toast('Interview Ended');
+    const stopInterview = async () => {
+        if (vapiRef.current) {
+            await vapiRef.current.stop();
+            setCallEnd(true);
             GenerateFeedback();
-        };
+        }
+    }
 
-        vapi.on("message", handleMessage);
-        vapi.on("call-start", callStartHandler);
-        vapi.on("speech-start", speechStartHandler);
-        vapi.on("speech-end", speechEndHandler);
-        vapi.on("call-end", callEndHandler);
-
-        return () => {
-            vapi.off("message", handleMessage);
-            vapi.off("call-start", callStartHandler);
-            vapi.off("speech-start", speechStartHandler);
-            vapi.off("speech-end", speechEndHandler);
-            vapi.off("call-end", callEndHandler);
-        };
-    }, []);
+    const toggleMute = () => {
+        if (vapiRef.current) {
+            if (isMuted) {
+                vapiRef.current.setMuted(false);
+                toast('Microphone unmuted');
+            } else {
+                vapiRef.current.setMuted(true);
+                toast('Microphone muted');
+            }
+            setIsMuted(!isMuted);
+        }
+    }
 
     const GenerateFeedback = async () => {
         try {
@@ -221,7 +249,10 @@ Key Guidelines:
             </div>
 
             <div className='flex items-center gap-5 justify-center mt-7'>
-                <Mic className='h-12 w-12 p-3 bg-gray-500 text-white rounded-full cursor-pointer'/>
+                <Mic 
+                    className={`h-12 w-12 p-3 ${isMuted ? 'bg-gray-300' : 'bg-primary'} text-white rounded-full cursor-pointer`}
+                    onClick={toggleMute}
+                />
                 {!loading ? (
                     <Phone 
                         className='h-12 w-12 p-3 bg-red-500 text-white rounded-full cursor-pointer'

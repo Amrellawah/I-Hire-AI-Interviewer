@@ -22,7 +22,7 @@ function DashboardLayout({ children }) {
           </div>
           
           {/* Main Content Area */}
-          <div className="flex flex-col flex-1 min-w-0"> {/* min-w-0 prevents overflow */}
+          <div className="flex flex-col flex-1 min-w-0">
             {/* Top Navigation (for mobile) */}
             <header className="lg:hidden p-4 border-b border-[#e4d3d5] bg-white flex items-center justify-between">
               <SidebarTrigger className="lg:hidden" />
@@ -37,7 +37,7 @@ function DashboardLayout({ children }) {
               style={{ 
                 backgroundColor: '#FBF1EE',
                 padding: '1rem',
-                marginLeft: '0' // Ensures no gap when sidebar collapses
+                marginLeft: '0' 
               }}
             >
               <div className="mx-auto p-4 md:p-6 lg:p-8 w-full max-w-[1800px]">
