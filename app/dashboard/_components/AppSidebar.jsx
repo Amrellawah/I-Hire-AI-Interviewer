@@ -21,10 +21,9 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
 
-export function AppSidebar() {
+export function AppSidebar({ isCollapsed, setIsCollapsed }) {
   const pathname = usePathname()
   const { user } = useUser()
-  const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const sidebarRef = useRef(null)
@@ -271,7 +270,7 @@ export function AppSidebar() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-[280px] p-0">
-            <div 
+            <div
               ref={sidebarRef}
               className="h-full border-r border-[#e4d3d5] bg-white"
             >
@@ -283,7 +282,9 @@ export function AppSidebar() {
 
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
-        <Sidebar className={`border-r border-[#e4d3d5] bg-white h-full flex flex-col ${isCollapsed ? 'w-20' : 'w-64'}`}>
+        <Sidebar
+          className={`fixed top-0 left-0 z-30 h-screen border-r border-[#e4d3d5] bg-white flex flex-col transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'}`}
+        >
           {renderSidebarContent()}
         </Sidebar>
       </div>

@@ -130,9 +130,9 @@ export default function JobSeekerPage() {
             <Button 
               variant="outline" 
               className="hidden md:flex items-center gap-2 border-[#be3144] text-[#be3144] hover:bg-[#f1e9ea] transition-colors"
-              onClick={() => router.push('/employer')}
+              onClick={() => router.push('/job-seeker/Upload-CV')}
             >
-              <span>For Employers</span>
+              <span>Upload CV</span>
               <ChevronRight className="w-4 h-4" />
             </Button>
             {isLoaded && user && (
