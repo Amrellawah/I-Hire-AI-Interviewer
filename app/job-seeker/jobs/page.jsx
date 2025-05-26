@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { db } from '@/utils/db';
 import { callInterview, MockInterview } from '@/utils/schema';
 import { desc } from 'drizzle-orm';
@@ -130,7 +130,7 @@ function JobSeekerJobCard({ job }) {
   );
 }
 
-export default function JobSeekerJobsPage() {
+function JobsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialSearch = searchParams.get('search') || "";
@@ -621,5 +621,13 @@ export default function JobSeekerJobsPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function JobSeekerJobsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <JobsPageContent />
+    </Suspense>
   );
 }
