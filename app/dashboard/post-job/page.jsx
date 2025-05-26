@@ -185,7 +185,7 @@ export default function PostJobPage() {
         setGender('');
         setEducation('');
         setAcademicExcellence(false);
-        setTimeout(() => router.push('/dashboard/scheduled-jobs'), 1200);
+        setTimeout(() => router.push('/dashboard/interview-options'), 1200);
       } else {
         setError(data.error || 'Failed to post job');
       }
@@ -506,7 +506,7 @@ export default function PostJobPage() {
           </div>
           <div className="flex justify-end mt-8">
             <Button type="submit" className="px-8 py-3 bg-gradient-to-r from-[#be3144] to-[#f05941] text-white font-semibold rounded-xl shadow-md hover:from-[#a31d1d] hover:to-[#be3144] transition-all duration-200 text-lg" disabled={loading}>
-              {loading ? 'Posting...' : 'Post Job'}
+              {loading ? 'Posting...' : 'Save & Continue'}
             </Button>
           </div>
           {success && <div className="text-green-600 font-semibold mt-4 text-center">Job posted successfully!</div>}
