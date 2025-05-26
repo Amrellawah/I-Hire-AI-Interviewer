@@ -8,5 +8,6 @@ CREATE TABLE "CallInterview" (
 	"recruiterName" varchar(255),
 	"recruiterEmail" varchar(255),
 	"job_id" varchar(255),
-	"createdAt" timestamp DEFAULT now()
+	"createdAt" timestamp DEFAULT now(),
+	"category" varchar(100)
 );

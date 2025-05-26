@@ -16,6 +16,8 @@ import { motion } from 'framer-motion'
 function FormContainer({ onHandleInputChange, GoToNext }) {
     const [interviewType, setInterviewType] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [category, setCategory] = useState("");
+    const [error, setError] = useState("");
 
     useEffect(() => {
         if (interviewType) {
@@ -33,7 +35,17 @@ function FormContainer({ onHandleInputChange, GoToNext }) {
         }
     }
 
+    const handleCategoryChange = (value) => {
+        setCategory(value);
+        setError("");
+        onHandleInputChange('category', value);
+    }
+
     const handleSubmit = () => {
+        if (!category) {
+            setError("Please select a job category.");
+            return;
+        }
         setIsSubmitting(true);
         setTimeout(() => {
             GoToNext();
@@ -73,6 +85,52 @@ function FormContainer({ onHandleInputChange, GoToNext }) {
                         onChange={(event) => onHandleInputChange('jobDescription', event.target.value)} 
                     />
                     <p className='text-xs text-gray-400 mt-1'>Detailed descriptions yield better question recommendations</p>
+                </div>
+
+                {/* Job Category */}
+                <div className='space-y-1'>
+                    <label className='text-sm font-medium text-gray-700'>Job Category <span className='text-red-500'>*</span></label>
+                    <Select onValueChange={handleCategoryChange} value={category}>
+                        <SelectTrigger className="w-full h-12 text-base border-gray-300 focus:ring-2 focus:ring-primary/50">
+                            <SelectValue placeholder="Select Category" />
+                        </SelectTrigger>
+                        <SelectContent className="border-gray-300 shadow-lg max-h-72 overflow-y-auto">
+                            <SelectItem value="Accounting/Finance">Accounting/Finance</SelectItem>
+                            <SelectItem value="Administration">Administration</SelectItem>
+                            <SelectItem value="Banking">Banking</SelectItem>
+                            <SelectItem value="R&D/Science">R&D/Science</SelectItem>
+                            <SelectItem value="Engineering - Construction/Civil/Architecture">Engineering - Construction/Civil/Architecture</SelectItem>
+                            <SelectItem value="Business Development">Business Development</SelectItem>
+                            <SelectItem value="Creative/Design/Art">Creative/Design/Art</SelectItem>
+                            <SelectItem value="Customer Service/Support">Customer Service/Support</SelectItem>
+                            <SelectItem value="Writing/Editorial">Writing/Editorial</SelectItem>
+                            <SelectItem value="Hospitality/Hotels/Food Services">Hospitality/Hotels/Food Services</SelectItem>
+                            <SelectItem value="Human Resources">Human Resources</SelectItem>
+                            <SelectItem value="Installation/Maintenance/Repair">Installation/Maintenance/Repair</SelectItem>
+                            <SelectItem value="IT/Software Development">IT/Software Development</SelectItem>
+                            <SelectItem value="Legal">Legal</SelectItem>
+                            <SelectItem value="Logistics/Supply Chain">Logistics/Supply Chain</SelectItem>
+                            <SelectItem value="Operations/Management">Operations/Management</SelectItem>
+                            <SelectItem value="Manufacturing/Production">Manufacturing/Production</SelectItem>
+                            <SelectItem value="Marketing/PR/Advertising">Marketing/PR/Advertising</SelectItem>
+                            <SelectItem value="Medical/Healthcare">Medical/Healthcare</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                            <SelectItem value="Project/Program Management">Project/Program Management</SelectItem>
+                            <SelectItem value="Quality">Quality</SelectItem>
+                            <SelectItem value="Analyst/Research">Analyst/Research</SelectItem>
+                            <SelectItem value="Sales/Retail">Sales/Retail</SelectItem>
+                            <SelectItem value="Media/Journalism/Publishing">Media/Journalism/Publishing</SelectItem>
+                            <SelectItem value="Sports and Leisure">Sports and Leisure</SelectItem>
+                            <SelectItem value="Fashion">Fashion</SelectItem>
+                            <SelectItem value="Pharmaceutical">Pharmaceutical</SelectItem>
+                            <SelectItem value="Tourism/Travel">Tourism/Travel</SelectItem>
+                            <SelectItem value="Purchasing/Procurement">Purchasing/Procurement</SelectItem>
+                            <SelectItem value="Strategy/Consulting">Strategy/Consulting</SelectItem>
+                            <SelectItem value="C-Level Executive/GM/Director">C-Level Executive/GM/Director</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <p className='text-xs text-gray-400 mt-1'>Choose the job category for filtering</p>
+                    {error && <p className='text-xs text-red-500 mt-1'>{error}</p>}
                 </div>
 
                 {/* Interview Duration */}

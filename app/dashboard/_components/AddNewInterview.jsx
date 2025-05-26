@@ -11,20 +11,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { chatSession } from "@/utils/OpenAIModel";
-import { LoaderCircle, Video } from "lucide-react";
+import { LoaderCircle, Video, ArrowRight } from "lucide-react";
 import { MockInterview } from "@/utils/schema";
 import { v4 as uuidv4 } from "uuid";
 import { useUser } from "@clerk/nextjs";
 import moment from "moment";
 import { db } from "@/utils/db";
 import { useRouter } from "next/navigation";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 
-
-export default function AddNewInterview() {
+export default function AddNewInterview({ open, setOpen }) {
+  if (!open) return null;
     const [interviewType, setInterviewType] = useState(""); // Initially empty, user selects one
-    const [openDialog, setOpenDialog] = useState(false);
-
-    // Technical Interview States
     const [jobPosition, setJobPosition] = useState("");
     const [jobDesc, setJobDesc] = useState("");
     const [jobRes, setJobRes] = useState("");
@@ -32,17 +38,16 @@ export default function AddNewInterview() {
     const [perfSkills, setPerfSkills] = useState("");
     const [careerLevel, setCareerLevel] = useState("");
     const [jobExperience, setJobExperience] = useState("");
-
-    // Behavioral Interview States
     const [skills, setSkills] = useState("");
     const [education, setEducation] = useState("");
     const [achievements, setAchievements] = useState("");
     const [projects, setProjects] = useState("");
-
     const [jsonResponse, setJsonResponse] = useState(null)
     const [loading, setLoading] = useState(false);
     const router = useRouter();
     const { user } = useUser();
+  const [category, setCategory] = useState("");
+  const [categoryError, setCategoryError] = useState("");
 
     const resetForm = () => {
         setInterviewType("");
@@ -58,10 +63,17 @@ export default function AddNewInterview() {
         setAchievements("");
         setProjects("");
         setJsonResponse(null);
+    setCategory("");
+    setCategoryError("");
     };
 
     const onSubmit = async (e) => {
         e.preventDefault();
+    setCategoryError("");
+    if (!category) {
+      setCategoryError("Please select a job category.");
+      return;
+    }
         setLoading(true);
         let prompt = "";
 
@@ -154,7 +166,7 @@ export default function AddNewInterview() {
         - "What are your strengths and weaknesses?"
 
         #### 2. Motivation & Career Goals (2 questions)  
-        - Explore the candidate’s personal drive, ambitions, and cultural alignment.  
+      - Explore the candidate's personal drive, ambitions, and cultural alignment.  
         - Include:  
         - "Why do you want to work for our company?"  
         - "What motivates you to perform well?"
@@ -168,7 +180,7 @@ export default function AddNewInterview() {
         - Evaluate *role, **challenges faced, **decision-making, **collaboration, and **overall behavioral approach*.  
         - Example:  
         - "If given unlimited resources, how would you enhance this project?"  
-        - "Describe a project that didn’t go as planned and what you learned."
+      - "Describe a project that didn't go as planned and what you learned."
 
         #### 5. Achievements-Based Questions (2 questions)  
         - Explore the impact, effort, and significance of key accomplishments.  
@@ -252,13 +264,14 @@ export default function AddNewInterview() {
             projects,
             createdBy: user?.primaryEmailAddress?.emailAddress,
             createdAt: moment().format("DD-MM-YYYY"),
-            interviewType
+          interviewType,
+          category
         })
         .returning({ mockId: MockInterview.mockId });
 
       if (resp.length > 0) {
         resetForm();
-        setOpenDialog(false);
+        setOpen(false);
         router.push(`/dashboard/interview/${resp[0]?.mockId}`);
       }
     } catch (error) {
@@ -270,202 +283,233 @@ export default function AddNewInterview() {
   };
 
   return (
-    <div>
-       <div 
-        onClick={() => setOpenDialog(true)}
-        className='
-          group relative
-          bg-white border border-gray-200 rounded-xl p-6 
-          flex flex-col gap-3 cursor-pointer
-          hover:border-primary hover:shadow-lg transition-all
-          overflow-hidden
-        '
-      >
-        {/* Background highlight on hover */}
-        <div className='
-          absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 
-          opacity-0 group-hover:opacity-100 transition-opacity
-        '/>
-        
-        <div className='flex items-center gap-4'>
-          <div className='
-            p-3 text-primary bg-red-100 rounded-lg
-            group-hover:bg-primary group-hover:text-white transition-colors
-          '>
-            <Video className='h-6 w-6'/>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="p-8 bg-white rounded-xl shadow-lg border border-gray-100 max-w-2xl mx-auto mt-8"
+    >
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-gray-900 mb-1">Create Mock Interview</h2>
+        <p className="text-gray-500">Fill in the details to generate customized mock interview questions</p>
           </div>
-          <h2 className='font-bold text-lg text-gray-800 group-hover:text-primary transition-colors'>
-            Create New Job
-          </h2>
+      <form className="space-y-8" onSubmit={onSubmit}>
+        {/* Interview Type */}
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-gray-700">Interview Type <span className="text-red-500">*</span></label>
+          <Select onValueChange={setInterviewType} value={interviewType}>
+            <SelectTrigger className="w-full h-12 text-base border-gray-300 focus:ring-2 focus:ring-primary/50">
+              <SelectValue placeholder="Select Interview Type" />
+            </SelectTrigger>
+            <SelectContent className="border-gray-300 shadow-lg">
+              <SelectItem value="technical">Technical</SelectItem>
+              <SelectItem value="behavioral">Behavioral</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        
-        <p className='text-gray-500 text-sm mt-1 group-hover:text-gray-700 transition-colors'>
-          Create AI Interviews and schedule them with candidates. Perfect for structured technical assessments.
-        </p>
-        
-        <div className='
-          mt-4 text-sm text-primary font-medium
-          opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0
-          transition-all duration-300
-        '>
-          Get started →
+        {/* Job Position */}
+        {interviewType && (
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">Job Position <span className="text-red-500">*</span></label>
+            <Input
+              placeholder="e.g. Full Stack Developer"
+              className="mt-1 h-12 text-base border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50 transition-colors"
+              onChange={(event) => setJobPosition(event.target.value)}
+              required
+            />
+            <p className="text-xs text-gray-400 mt-1">Enter the job title you're hiring for</p>
         </div>
+        )}
+        {/* Job Description */}
+        {interviewType && (
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">Job Description <span className="text-red-500">*</span></label>
+            <Textarea
+              placeholder="Enter job description details including responsibilities, requirements, etc."
+              className="h-[150px] mt-1 text-base border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50 transition-colors"
+              onChange={(event) => setJobDesc(event.target.value)}
+              required
+            />
+            <p className="text-xs text-gray-400 mt-1">Detailed descriptions yield better question recommendations</p>
       </div>
-
-      <Dialog
-        open={openDialog}
-        onOpenChange={(open) => {
-          if (!open) resetForm();
-          setOpenDialog(open);
-        }}
-      >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">
-              {interviewType
-                ? `${
-                    interviewType.charAt(0).toUpperCase() +
-                    interviewType.slice(1)
-                  } Interview`
-                : "Select Interview Type"}
-            </DialogTitle>
-            <DialogDescription>
-              <form onSubmit={onSubmit}>
-                {/* Select Interview Type */}
-                {!interviewType && (
-                  <div className="my-3">
-                    <label>Interview Type</label>
-                    <select
-                      value={interviewType}
-                      onChange={(e) => setInterviewType(e.target.value)}
-                      className="w-full border rounded-lg px-3 py-2 mt-1"
-                    >
-                      <option value="">Select Interview Type</option>
-                      <option value="technical">Technical</option>
-                      <option value="behavioral">Behavioral</option>
-                    </select>
+        )}
+        {/* Job Category */}
+        {interviewType && (
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">Job Category <span className="text-red-500">*</span></label>
+            <Select onValueChange={value => { setCategory(value); setCategoryError(''); }} value={category}>
+              <SelectTrigger className="w-full h-12 text-base border-gray-300 focus:ring-2 focus:ring-primary/50">
+                <SelectValue placeholder="Select Category" />
+              </SelectTrigger>
+              <SelectContent className="border-gray-300 shadow-lg max-h-72 overflow-y-auto">
+                <SelectItem value="Accounting/Finance">Accounting/Finance</SelectItem>
+                <SelectItem value="Administration">Administration</SelectItem>
+                <SelectItem value="Banking">Banking</SelectItem>
+                <SelectItem value="R&D/Science">R&D/Science</SelectItem>
+                <SelectItem value="Engineering - Construction/Civil/Architecture">Engineering - Construction/Civil/Architecture</SelectItem>
+                <SelectItem value="Business Development">Business Development</SelectItem>
+                <SelectItem value="Creative/Design/Art">Creative/Design/Art</SelectItem>
+                <SelectItem value="Customer Service/Support">Customer Service/Support</SelectItem>
+                <SelectItem value="Writing/Editorial">Writing/Editorial</SelectItem>
+                <SelectItem value="Hospitality/Hotels/Food Services">Hospitality/Hotels/Food Services</SelectItem>
+                <SelectItem value="Human Resources">Human Resources</SelectItem>
+                <SelectItem value="Installation/Maintenance/Repair">Installation/Maintenance/Repair</SelectItem>
+                <SelectItem value="IT/Software Development">IT/Software Development</SelectItem>
+                <SelectItem value="Legal">Legal</SelectItem>
+                <SelectItem value="Logistics/Supply Chain">Logistics/Supply Chain</SelectItem>
+                <SelectItem value="Operations/Management">Operations/Management</SelectItem>
+                <SelectItem value="Manufacturing/Production">Manufacturing/Production</SelectItem>
+                <SelectItem value="Marketing/PR/Advertising">Marketing/PR/Advertising</SelectItem>
+                <SelectItem value="Medical/Healthcare">Medical/Healthcare</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+                <SelectItem value="Project/Program Management">Project/Program Management</SelectItem>
+                <SelectItem value="Quality">Quality</SelectItem>
+                <SelectItem value="Analyst/Research">Analyst/Research</SelectItem>
+                <SelectItem value="Sales/Retail">Sales/Retail</SelectItem>
+                <SelectItem value="Media/Journalism/Publishing">Media/Journalism/Publishing</SelectItem>
+                <SelectItem value="Sports and Leisure">Sports and Leisure</SelectItem>
+                <SelectItem value="Fashion">Fashion</SelectItem>
+                <SelectItem value="Pharmaceutical">Pharmaceutical</SelectItem>
+                <SelectItem value="Tourism/Travel">Tourism/Travel</SelectItem>
+                <SelectItem value="Purchasing/Procurement">Purchasing/Procurement</SelectItem>
+                <SelectItem value="Strategy/Consulting">Strategy/Consulting</SelectItem>
+                <SelectItem value="C-Level Executive/GM/Director">C-Level Executive/GM/Director</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-400 mt-1">Choose the job category for filtering</p>
+            {categoryError && <p className="text-xs text-red-500 mt-1">{categoryError}</p>}
                   </div>
                 )}
-
-                {/* Form for Technical Interview */}
-                {interviewType === "technical" && (
+        {/* Technical Fields */}
+        {interviewType === 'technical' && (
                   <>
-                    <div className='mt-4 my-3'>
-                        <label>Job Role/Position</label>
-                        <Input placeholder="Ex. Full Stack Developer" required
-                            onChange={(event) => setJobPosition(event.target.value)} />
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Job Responsibilities</label>
+              <Textarea
+                placeholder="Ex. Join us as a [Job Title] to [core responsibility]."
+                className="h-[80px] mt-1 text-base border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50 transition-colors"
+                onChange={(event) => setJobRes(event.target.value)}
+                required
+              />
                     </div>
-                    <div className='my-3'>
-                        <label>Job Description</label>
-                        <Textarea placeholder="Ex. Join us as a [Job Title] to [core responsibility]." required
-                            onChange={(event) => setJobDesc(event.target.value)} />
-                    </div>
-                    <div className='my-3'>
-                        <label>Job Responsibilities</label>
-                        <Textarea placeholder="Ex. Join us as a [Job Title] to [core responsibility]." required
-                            onChange={(event) => setJobRes(event.target.value)} />
-                    </div>
-                    <div className='my-3'>
-                        <label>Job Requirements</label>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Job Requirements</label>
                         <Textarea 
-                            placeholder={`Ex.🔹 Skills: {Key technical & soft skills} `}
+                placeholder="Ex.🔹 Skills: {Key technical & soft skills} "
+                className="h-[80px] mt-1 text-base border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50 transition-colors"
+                onChange={(event) => setJobReq(event.target.value)}
                             required
-                            onChange={(event) => setJobReq(event.target.value)}
                         />
                     </div>
-                    <div className='my-3'>
-                        <label>Preferred Skills (Not Mandatory)</label>
-                        <Input placeholder="Ex. Experienced (Non-Manager)" required
-                            onChange={(event) => setPerfSkills(event.target.value)} />
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Preferred Skills (Not Mandatory)</label>
+              <Input
+                placeholder="Ex. Experienced (Non-Manager)"
+                className="mt-1 h-12 text-base border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50 transition-colors"
+                onChange={(event) => setPerfSkills(event.target.value)}
+                required
+              />
                     </div>
-                    <div className='my-3'>
-                        <label>Career Level</label>
-                        <Input placeholder="Ex. Experienced (Non-Manager)" required
-                            onChange={(event) => setCareerLevel(event.target.value)} />
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Career Level</label>
+              <Input
+                placeholder="Ex. Experienced (Non-Manager)"
+                className="mt-1 h-12 text-base border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50 transition-colors"
+                onChange={(event) => setCareerLevel(event.target.value)}
+                required
+              />
                     </div>
-                    <div className='my-3'>
-                        <label>Experience Needed</label>
-                        <Input placeholder="Ex. Years of Experience Needed" required
-                            onChange={(event) => setJobExperience(event.target.value)} />
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Experience Needed</label>
+              <Input
+                placeholder="Ex. Years of Experience Needed"
+                className="mt-1 h-12 text-base border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50 transition-colors"
+                onChange={(event) => setJobExperience(event.target.value)}
+                required
+              />
                     </div>
                   </>
                 )}
-
-                {/* Form for Behavioral Interview */}
-                {interviewType === "behavioral" && (
+        {/* Behavioral Fields */}
+        {interviewType === 'behavioral' && (
                   <>
-                            <div className="mt-4 my-3">
-                                <label>Skills</label>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Skills</label>
                                 <Textarea
                                 placeholder="e.g., React, Node.js, Leadership, Problem-solving"
+                className="h-[80px] mt-1 text-base border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50 transition-colors"
+                onChange={(e) => setSkills(e.target.value)}
                                 required
-                                onChange={(e) => setSkills(e.target.value)}
                                 />
                             </div>
-                            <div className="my-3">
-                                <label>Education</label>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Education</label>
                                 <Textarea
                                 placeholder="e.g., BSc in Computer Science, MBA..."
+                className="h-[80px] mt-1 text-base border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50 transition-colors"
+                onChange={(e) => setEducation(e.target.value)}
                                 required
-                                onChange={(e) => setEducation(e.target.value)}
                                 />
                             </div>
-                            <div className="my-3">
-                                <label>Achievements</label>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Achievements</label>
                                 <Textarea
                                 placeholder="e.g., Hackathon winner, Published research..."
+                className="h-[80px] mt-1 text-base border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50 transition-colors"
+                onChange={(e) => setAchievements(e.target.value)}
                                 required
-                                onChange={(e) => setAchievements(e.target.value)}
                                 />
                             </div>
-                            <div className="my-3">
-                                <label>Projects</label>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Projects</label>
                                 <Textarea
                                 placeholder="e.g., E-commerce website, AI chatbot..."
+                className="h-[80px] mt-1 text-base border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50 transition-colors"
+                onChange={(e) => setProjects(e.target.value)}
                                 required
-                                onChange={(e) => setProjects(e.target.value)}
                                 />
                             </div>
-                            <div className="my-3">
-                                <label>Experience Needed</label>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Experience Needed</label>
                                 <Input
                                 placeholder="Ex. 5"
                                 max="100"
                                 type="number"
+                className="mt-1 h-12 text-base border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50 transition-colors"
+                onChange={(event) => setJobExperience(event.target.value)}
                                 required
-                                onChange={(event) => setJobExperience(event.target.value)}
                                 />
                             </div>
                   </>
                 )}
-
-                {/* --- Buttons --- */}
-                <div className="flex gap-5 justify-end">
+        {/* Submit Button */}
+        <div className="pt-6 flex justify-between border-t border-gray-100">
                   <Button
                     type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      resetForm();
-                      setOpenDialog(false);
-                    }}
+            variant="outline"
+            onClick={() => setOpen(false)}
+            className="h-12 px-8 text-base font-medium mr-4"
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={loading}>
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="h-12 px-8 text-base font-medium bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white shadow-md transition-all"
+            >
                     {loading ? (
+                'Generating...'
+              ) : (
                       <>
-                        <LoaderCircle className="animate-spin" /> Generating...
+                  Generate Questions
+                  <ArrowRight className="ml-2 h-5 w-5" />
                       </>
-                    ) : (
-                      "Generate Questions"
                     )}
                   </Button>
+          </motion.div>
                 </div>
               </form>
-            </DialogDescription>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
-    </div>
+    </motion.div>
   );
 }

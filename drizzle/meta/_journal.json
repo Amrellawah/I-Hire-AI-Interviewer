@@ -36,6 +36,13 @@
       "when": 1747540357999,
       "tag": "0004_crazy_ogun",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1748217459844,
+      "tag": "0005_nice_starbolt",
+      "breakpoints": true
     }
   ]
 }

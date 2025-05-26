@@ -1,8 +1,8 @@
 "use client"
 import { useUser } from '@clerk/nextjs';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { db } from '@/utils/db';
-import { MockInterview } from '@/utils/schema';
+import { MockInterview, callInterview } from '@/utils/schema';
 import { desc, eq } from 'drizzle-orm';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -12,15 +12,20 @@ import {
   ChevronRight, Loader2, BarChart2, Clock, User
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import CallInterviewCard from '../dashboard/_components/CallInterviewCard';
+import Header from "../dashboard/_components/Header";
+import Image from 'next/image';
 
 export default function JobSeekerPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const [jobSearchQuery, setJobSearchQuery] = useState('');
   const [interviewList, setInterviewList] = useState([]);
   const [loadingInterviews, setLoadingInterviews] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
+  const [allJobs, setAllJobs] = useState([]);
+  const [loadingJobs, setLoadingJobs] = useState(true);
+  const [scrolled, setScrolled] = useState(false);
 
   // Enhanced job categories with more details
   const jobCategories = [
@@ -62,7 +67,18 @@ export default function JobSeekerPage() {
     if (isLoaded && user) {
       fetchInterviews();
     }
+    if (isLoaded) {
+      fetchAllJobs();
+    }
   }, [user, isLoaded]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 10);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const fetchInterviews = async () => {
     try {
@@ -79,20 +95,18 @@ export default function JobSeekerPage() {
     }
   };
 
-  const handleJobSearch = async (e) => {
-    e.preventDefault();
-    if (jobSearchQuery.trim()) {
-      setIsSearching(true);
-      try {
-        router.push(`/jobs?search=${encodeURIComponent(jobSearchQuery)}`);
-      } finally {
-        setIsSearching(false);
-      }
+  const fetchAllJobs = async () => {
+    try {
+      const jobs = await db.select().from(callInterview).orderBy(desc(callInterview.createdAt));
+      setAllJobs(jobs);
+    } catch (error) {
+      console.error('Failed to fetch jobs:', error);
+    } finally {
+      setLoadingJobs(false);
     }
   };
 
   const handleCategorySelect = (searchTerm) => {
-    setJobSearchQuery(searchTerm);
     router.push(`/jobs?search=${encodeURIComponent(searchTerm)}`);
   };
 
@@ -101,60 +115,100 @@ export default function JobSeekerPage() {
   const avgRating = interviewList.reduce((acc, curr) => acc + (curr.rating || 0), 0) / completedInterviews || 0;
   const lastInterviewDate = interviewList[0]?.createdAt;
 
+  // User-friendly job card for job seekers
+  function JobSeekerJobCard({ job }) {
+    const router = useRouter();
+    return (
+      <div className="p-6 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-all flex flex-col h-full">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="h-10 w-10 rounded-full bg-gradient-to-r from-[#be3144] to-[#f05941] flex items-center justify-center text-white font-bold text-lg">
+              {job.jobPosition?.charAt(0) || 'J'}
+            </div>
+            <div>
+              <h3 className="font-bold text-lg text-[#191011] mb-0.5">{job.jobPosition}</h3>
+              <span className="text-xs text-[#8e575f]">{job.recruiterName || 'Employer'}</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 mb-2">
+            <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#f1e9ea] text-xs text-[#be3144] font-medium">
+              {job.type || 'Interview'}
+            </span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#f1e9ea] text-xs text-[#be3144] font-medium">
+              {job.duration || 'N/A'}
+            </span>
+          </div>
+          <p className="text-sm text-[#191011] mb-4 line-clamp-3 min-h-[48px]">{job.jobDescription || 'No description provided.'}</p>
+        </div>
+        <div className="mt-auto flex flex-col gap-2">
+          <Button
+            className="w-full bg-gradient-to-r from-[#be3144] to-[#f05941] hover:from-[#f05941] hover:to-[#ff7b54] text-white"
+            onClick={() => router.push(`/job-seeker/job/${job.job_id}`)}
+          >
+            View Details
+          </Button>
+          <Button
+            className="w-full border-[#be3144] text-[#be3144] hover:bg-[#f1e9ea]"
+            variant="outline"
+            onClick={() => router.push(`/job-seeker/Call-Interview/${job.job_id}`)}
+          >
+            Start Interview
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#fbf9f9] to-[#f1e9ea]">
-      {/* Enhanced Header with User Stats */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b border-[#f1e9ea] px-6 py-3 shadow-sm">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#be3144] to-[#f05941] rounded-lg flex items-center justify-center group-hover:rotate-12 transition-transform shadow-md">
-              <Lightbulb className="w-5 h-5 text-white" />
-            </div>
-            <h1 className="text-xl font-bold text-[#191011]">AI Interviewer</h1>
-          </Link>
-
-          <div className="hidden md:flex items-center gap-6">
-            <form onSubmit={(e) => e.preventDefault()} className="relative w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8e575f]" />
-              <input
-                type="text"
-                placeholder="Search resources..."
-                className="w-full pl-10 pr-4 py-2 bg-[#f1e9ea] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#be3144]/50 transition-all"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </form>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="outline" 
-              className="hidden md:flex items-center gap-2 border-[#be3144] text-[#be3144] hover:bg-[#f1e9ea] transition-colors"
-              onClick={() => router.push('/job-seeker/Upload-CV')}
-            >
-              <span>Upload CV</span>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-            {isLoaded && user && (
-              <div className="relative">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#f1e9ea] to-[#e4d3d5] flex items-center justify-center overflow-hidden border-2 border-[#f1e9ea] hover:border-[#be3144] transition-colors shadow-sm">
-                  <img 
-                    src={user.imageUrl} 
-                    alt="Profile" 
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                {completedInterviews > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-[#be3144] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                    {completedInterviews}
-                  </span>
-                )}
+      {/* Job Seeker Header matching main site style */}
+      <div className="pt-[70px]">
+        <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'py-2 shadow-lg' : 'py-4 shadow-sm'}`} style={{ backgroundColor: '#FBF1EE' }}>
+          <div className="container mx-auto px-4 flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-4 group">
+              {/* Logo with hover effect */}
+              <div className={`transition-all duration-300 ${scrolled ? 'w-12 h-12' : 'w-14 h-14'}`}>
+                <Image 
+                  src={'/logo.png'} 
+                  width={scrolled ? 48 : 56} 
+                  height={scrolled ? 48 : 56} 
+                  alt='logo'
+                  className="group-hover:scale-105 transition-transform duration-300"
+                />
               </div>
-            )}
+              {/* Gradient company name */}
+              <span className={`text-xl font-bold bg-gradient-to-r from-[#be3144] to-[#f05941] bg-clip-text text-transparent transition-all duration-300 ${scrolled ? 'text-2xl' : 'text-3xl'}`}>I-Hire</span>
+            </Link>
+            {/* Job seeker actions */}
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="outline" 
+                className="hidden md:flex items-center gap-2 border-[#be3144] text-[#be3144] hover:bg-[#f1e9ea] transition-colors"
+                onClick={() => router.push('/job-seeker/Upload-CV')}
+              >
+                <span>Upload CV</span>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+              {isLoaded && user && (
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#f1e9ea] to-[#e4d3d5] flex items-center justify-center overflow-hidden border-2 border-[#f1e9ea] hover:border-[#be3144] transition-colors shadow-sm">
+                    <img 
+                      src={user.imageUrl} 
+                      alt="Profile" 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  {completedInterviews > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-[#be3144] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {completedInterviews}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </header>
-
+        </header>
+      </div>
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Enhanced Hero Section */}
         <section className="relative rounded-2xl overflow-hidden mb-12 shadow-xl">
@@ -174,29 +228,21 @@ export default function JobSeekerPage() {
                 Practice interviews, get personalized feedback, and stand out from the competition with our AI-powered platform
               </p>
               
-              <form onSubmit={handleJobSearch} className="w-full">
+              <form className="w-full" onSubmit={e => { e.preventDefault(); router.push('/job-seeker/jobs'); }}>
                 <div className="relative flex shadow-lg rounded-lg overflow-hidden">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#8e575f]" />
                   <input
                     type="text"
                     placeholder="Search for jobs (e.g. 'Frontend Developer')"
-                    className="w-full pl-12 pr-4 py-4 focus:outline-none text-[#191011]"
-                    value={jobSearchQuery}
-                    onChange={(e) => setJobSearchQuery(e.target.value)}
+                    className="w-full pl-12 pr-4 py-4 focus:outline-none text-[#191011] min-h-[56px] text-base"
+                    disabled
                   />
                   <Button 
                     type="submit"
-                    className="rounded-none px-6 bg-gradient-to-r from-[#be3144] to-[#f05941] hover:from-[#f05941] hover:to-[#ff7b54] transition-all"
-                    disabled={isSearching}
+                    className="rounded-none px-8 min-h-[56px] h-full text-base font-semibold bg-gradient-to-r from-[#be3144] to-[#f05941] hover:from-[#f05941] hover:to-[#ff7b54] transition-all flex items-center justify-center"
                   >
-                    {isSearching ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <>
-                        Find Jobs
-                        <ArrowRight className="ml-2 w-4 h-4" />
-                      </>
-                    )}
+                    Find Jobs
+                    <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
                 </div>
               </form>
