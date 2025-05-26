@@ -5,9 +5,11 @@ import { AppSidebar } from './_components/AppSidebar'
 import Head from 'next/head'
 import { UserButton } from '@clerk/nextjs'
 import WelcomeContainer from './_components/WelcomeContainer'
+import { usePathname } from 'next/navigation'
 
 function DashboardLayout({ children }) {
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const pathname = usePathname();
   return (
     <>
       <Head>
@@ -44,7 +46,7 @@ function DashboardLayout({ children }) {
               }}
             >
               <div className="mx-auto p-4 md:p-6 lg:p-8 w-full max-w-[1800px]">
-                <WelcomeContainer />
+                {pathname === '/dashboard' && <WelcomeContainer />}
                 {children}
               </div>
             </main>

@@ -7,12 +7,17 @@ export const SideBarOptions = [
         path:'/dashboard'
     },
     {
-        name: 'Scheduled Interview',
+        name: 'Post a Job',
+        icon: BriefcaseBusinessIcon,
+        path:'/dashboard/post-job'
+    },
+    {
+        name: 'Scheduled Jobs',
         icon: Calendar,
         path:'/dashboard/scheduled-interview'
     },
     {
-        name: 'All Interview',
+        name: 'All Jobs',
         icon: List,
         path:'/dashboard/all-interview'
     },
