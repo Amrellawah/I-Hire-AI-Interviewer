@@ -52,6 +52,7 @@
     "openai": "^4.103.0",
     "openai-whisper": "^1.0.2",
     "pdf-parse": "^1.1.1",
+    "polished": "^4.3.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hook-speech-to-text": "^0.8.0",

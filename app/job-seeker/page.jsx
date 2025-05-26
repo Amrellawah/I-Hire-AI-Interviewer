@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 import CallInterviewCard from '../dashboard/_components/CallInterviewCard';
 import Header from "../dashboard/_components/Header";
 import Image from 'next/image';
+import LatestJobsSection from './LatestJobsSection';
 
 export default function JobSeekerPage() {
   const { user, isLoaded } = useUser();
@@ -27,40 +28,16 @@ export default function JobSeekerPage() {
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [scrolled, setScrolled] = useState(false);
 
-  // Enhanced job categories with more details
+  // Use the same jobCategories as in the jobs page for consistency
   const jobCategories = [
-    {
-      icon: <Code className="w-6 h-6 text-[#be3144]" />,
-      title: "Software Engineer",
-      description: "Build and maintain software systems",
-      searchTerm: "software engineer",
-      avgSalary: "$110,000",
-      growth: "22% (Much faster than average)"
-    },
-    {
-      icon: <Building2 className="w-6 h-6 text-[#be3144]" />,
-      title: "Product Manager",
-      description: "Lead product development",
-      searchTerm: "product manager",
-      avgSalary: "$105,000",
-      growth: "10% (Faster than average)"
-    },
-    {
-      icon: <Paintbrush className="w-6 h-6 text-[#be3144]" />,
-      title: "UX Designer",
-      description: "Create user experiences",
-      searchTerm: "ux designer",
-      avgSalary: "$95,000",
-      growth: "13% (Faster than average)"
-    },
-    {
-      icon: <Database className="w-6 h-6 text-[#be3144]" />,
-      title: "Data Scientist",
-      description: "Analyze complex data",
-      searchTerm: "data scientist",
-      avgSalary: "$120,000",
-      growth: "36% (Much faster than average)"
-    },
+    { title: 'Accounting/Finance', icon: <Database className="w-6 h-6 text-[#be3144]" />, description: 'Manage financial accounts and records.' },
+    { title: 'Administration', icon: <Building2 className="w-6 h-6 text-[#be3144]" />, description: 'Oversee office operations and support.' },
+    { title: 'Banking', icon: <Briefcase className="w-6 h-6 text-[#be3144]" />, description: 'Work in financial institutions and services.' },
+    { title: 'IT/Software Development', icon: <Code className="w-6 h-6 text-[#be3144]" />, description: 'Develop and maintain software systems.' },
+    { title: 'Marketing/PR/Advertising', icon: <Lightbulb className="w-6 h-6 text-[#be3144]" />, description: 'Promote brands and manage public relations.' },
+    { title: 'Human Resources', icon: <User className="w-6 h-6 text-[#be3144]" />, description: 'Manage recruitment and employee relations.' },
+    { title: 'Customer Service/Support', icon: <Star className="w-6 h-6 text-[#be3144]" />, description: 'Assist and support customers.' },
+    { title: 'Other', icon: <Database className="w-6 h-6 text-[#be3144]" />, description: 'Explore more categories.' },
   ];
 
   useEffect(() => {
@@ -106,8 +83,8 @@ export default function JobSeekerPage() {
     }
   };
 
-  const handleCategorySelect = (searchTerm) => {
-    router.push(`/jobs?search=${encodeURIComponent(searchTerm)}`);
+  const handleCategorySelect = (categoryTitle) => {
+    router.push(`/job-seeker/jobs?category=${encodeURIComponent(categoryTitle)}`);
   };
 
   // Calculate interview stats
@@ -228,14 +205,15 @@ export default function JobSeekerPage() {
                 Practice interviews, get personalized feedback, and stand out from the competition with our AI-powered platform
               </p>
               
-              <form className="w-full" onSubmit={e => { e.preventDefault(); router.push('/job-seeker/jobs'); }}>
+              <form className="w-full" onSubmit={e => { e.preventDefault(); if (searchQuery.trim()) { router.push(`/job-seeker/jobs?search=${encodeURIComponent(searchQuery)}`); } else { router.push('/job-seeker/jobs'); } }}>
                 <div className="relative flex shadow-lg rounded-lg overflow-hidden">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#8e575f]" />
                   <input
                     type="text"
                     placeholder="Search for jobs (e.g. 'Frontend Developer')"
                     className="w-full pl-12 pr-4 py-4 focus:outline-none text-[#191011] min-h-[56px] text-base"
-                    disabled
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
                   />
                   <Button 
                     type="submit"
@@ -305,146 +283,52 @@ export default function JobSeekerPage() {
         )}
 
         {/* Enhanced Job Categories */}
-        <section className="mb-16">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-            <h2 className="text-2xl font-bold text-[#191011]">Explore Job Categories</h2>
-            <p className="text-[#8e575f]">Click to search for jobs in each category</p>
+        <section className="mb-10 bg-[#f9f6f6] border border-[#f1e9ea] rounded-2xl px-2 py-6 md:p-8 shadow-sm">
+          <div className="mb-6 px-2 md:px-0">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="inline-block w-8 h-2 rounded bg-gradient-to-r from-[#be3144] to-[#f05941] mr-2"></span>
+              <h2 className="text-2xl md:text-3xl font-extrabold text-[#191011]">Explore Job Categories</h2>
+            </div>
+            <div className="h-1 w-24 bg-[#be3144] rounded"></div>
+            <p className="text-[#8e575f] text-sm md:text-base mt-2">Click to search for jobs in each category</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="flex gap-4 overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-4 md:gap-6 scrollbar-hide snap-x snap-mandatory px-1 md:px-0">
             {jobCategories.map((category, index) => (
               <div
                 key={index}
-                className="bg-white p-6 rounded-xl border border-[#e4d3d5] hover:border-[#be3144] hover:shadow-md transition-all cursor-pointer group"
-                onClick={() => handleCategorySelect(category.searchTerm)}
+                className="min-w-[80vw] max-w-[90vw] md:min-w-0 md:max-w-none bg-white p-5 md:p-6 rounded-2xl border border-[#e4d3d5] hover:border-[#be3144] hover:shadow-lg transition-all cursor-pointer group flex flex-col h-full snap-center relative"
+                onClick={() => handleCategorySelect(category.title)}
               >
-                <div className="flex flex-col h-full">
-                  <div className="w-12 h-12 bg-[#f1e9ea] rounded-full flex items-center justify-center mb-4 group-hover:bg-[#be3144]/10 transition-colors">
+                <div className="flex items-center gap-4 mb-3">
+                  <div className="w-14 h-14 md:w-12 md:h-12 bg-[#f1e9ea] rounded-full flex items-center justify-center group-hover:bg-[#be3144]/10 transition-colors text-2xl md:text-xl">
                     {category.icon}
                   </div>
-                  <h3 className="font-bold text-[#191011] mb-1 group-hover:text-[#be3144] transition-colors">
+                  <h3 className="font-bold text-[#191011] text-lg md:text-xl group-hover:text-[#be3144] transition-colors flex-1 min-w-0 break-words line-clamp-2">
                     {category.title}
                   </h3>
-                  <p className="text-sm text-[#8e575f] mb-3 flex-grow">
-                    {category.description}
-                  </p>
-                  <div className="pt-3 border-t border-[#e4d3d5]">
-                    <div className="flex justify-between text-xs text-[#8e575f]">
-                      <span>Avg. Salary:</span>
-                      <span className="font-medium">{category.avgSalary}</span>
-                    </div>
-                    <div className="flex justify-between text-xs text-[#8e575f] mt-1">
-                      <span>Job Growth:</span>
-                      <span className="font-medium">{category.growth}</span>
-                    </div>
-                  </div>
+                  <ChevronRight className="w-6 h-6 text-[#be3144] opacity-70 group-hover:translate-x-1 transition-transform" />
                 </div>
+                <p className="text-sm md:text-base text-[#8e575f] mb-1 flex-grow">
+                  {category.description}
+                </p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Enhanced Interview Section */}
-        <section>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-[#191011]">Your Interview History</h2>
-              <p className="text-[#8e575f]">
-                {completedInterviews > 0 
-                  ? `You've completed ${completedInterviews} interview${completedInterviews !== 1 ? 's' : ''}`
-                  : "Start practicing to see your history here"}
-              </p>
-            </div>
-            <Link href="/dashboard/interview/new">
-              <Button className="bg-gradient-to-r from-[#be3144] to-[#f05941] hover:from-[#f05941] hover:to-[#ff7b54] transition-all shadow-md">
-                Start New Interview
-              </Button>
-            </Link>
-          </div>
-
-          {loadingInterviews ? (
-            <div className="flex justify-center items-center h-40">
-              <Loader2 className="w-8 h-8 animate-spin text-[#be3144]" />
-            </div>
-          ) : interviewList.length > 0 ? (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {interviewList.slice(0, 4).map((interview) => (
-                  <div 
-                    key={interview.mockId} 
-                    className="bg-white border border-[#e4d3d5] rounded-xl p-6 hover:shadow-md transition-shadow group"
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="font-bold text-lg text-[#191011] mb-1 group-hover:text-[#be3144] transition-colors">
-                          {interview.jobPosition}
-                        </h3>
-                        <p className="text-sm text-[#8e575f]">
-                          {new Date(interview.createdAt).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 bg-[#f1e9ea] px-2 py-1 rounded-full">
-                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                        <span className="text-xs font-medium">
-                          {interview.rating ? `${interview.rating}/5` : 'Not rated'}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 mb-4 text-sm text-[#8e575f]">
-                      <Briefcase className="w-4 h-4" />
-                      <span>{interview.jobExperience} years experience</span>
-                    </div>
-                    
-                    <p className="text-[#191011] mb-6 line-clamp-2">
-                      {interview.jobDesc || "No description provided"}
-                    </p>
-                    
-                    <Link 
-                      href={`/dashboard/interview/${interview.mockId}`}
-                      className="inline-flex items-center text-sm font-medium text-[#be3144] hover:text-[#a82a3d] transition-colors group-hover:underline"
-                    >
-                      View Details
-                      <ArrowRight className="ml-1 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                  </div>
-                ))}
-              </div>
-              {interviewList.length > 4 && (
-                <div className="mt-8 text-center">
-                  <Link 
-                    href="/dashboard/interviews"
-                    className="inline-flex items-center text-[#be3144] hover:text-[#a82a3d] font-medium transition-colors group"
-                  >
-                    View all {interviewList.length} interviews
-                    <ChevronRight className="ml-1 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="bg-white border-2 border-dashed border-[#e4d3d5] rounded-xl p-12 text-center">
-              <WebcamIcon className="mx-auto w-12 h-12 text-[#8e575f] mb-4" />
-              <h3 className="text-xl font-medium text-[#191011] mb-2">
-                No interviews yet
-              </h3>
-              <p className="text-[#8e575f] mb-6 max-w-md mx-auto">
-                Get started by practicing with our AI interviewer to improve your skills
-              </p>
-              <Link href="/dashboard/interview/new">
-                <Button className="bg-gradient-to-r from-[#be3144] to-[#f05941] hover:from-[#f05941] hover:to-[#ff7b54] transition-all">
-                  Start Practice Interview
-                </Button>
-              </Link>
-            </div>
-          )}
-        </section>
+        <LatestJobsSection allJobs={allJobs} />
       </main>
     </div>
   );
+}
+
+// Helper function for time ago
+function timeAgo(date) {
+  const now = new Date();
+  const posted = new Date(date);
+  const diff = Math.floor((now - posted) / 1000);
+  if (diff < 60) return `${diff} seconds ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+  return posted.toLocaleDateString();
 }
