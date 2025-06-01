@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS "JobPost" CASCADE;
+ALTER TABLE "mockInterview" ADD COLUMN IF NOT EXISTS "jobDetailsId" integer;

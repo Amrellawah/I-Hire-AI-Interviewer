@@ -1,8 +1,8 @@
 "use client"
 import { Progress } from '@/components/ui/progress';
 import { ArrowLeft } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import React, { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
 import FormContainer from './_components/FormContainer';
 import QuestionList from './_components/QuestionList';
 import { toast } from 'sonner';
@@ -11,10 +11,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 function CreateInterview() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const jobDetailsId = searchParams.get('jobDetailsId');
+    const [jobDetails, setJobDetails] = useState(null);
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({});
     const [jobId, setJobId] = useState();
     const [isTransitioning, setIsTransitioning] = useState(false);
+
+    useEffect(() => {
+      if (jobDetailsId) {
+        fetch(`/api/job-details/${jobDetailsId}`)
+          .then(res => res.json())
+          .then(data => setJobDetails(data))
+          .catch(() => setJobDetails(null));
+      }
+    }, [jobDetailsId]);
 
     const onHandleInputChange = (field, value) => {
         setFormData(prev => ({
@@ -102,6 +114,8 @@ function CreateInterview() {
                             <FormContainer 
                                 onHandleInputChange={onHandleInputChange}
                                 GoToNext={onGoToNext} 
+                                jobDetails={jobDetails}
+                                jobDetailsId={jobDetailsId}
                             />
                         )}
                         {step === 2 && (
@@ -109,6 +123,7 @@ function CreateInterview() {
                                 formData={formData} 
                                 onCreateLink={onCreateLink} 
                                 onBack={() => handleStepChange(step - 1)}
+                                jobDetails={jobDetails}
                             />
                         )}
                         {step === 3 && (

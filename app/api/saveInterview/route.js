@@ -17,6 +17,7 @@ export async function POST(req) {
       recruiterEmail: user.emailAddresses?.[0]?.emailAddress || '',
       job_id,
       createdAt: new Date(),
+      jobDetailsId: formData.jobDetailsId,
     });
 
   return NextResponse.json({ success: true, job_id });

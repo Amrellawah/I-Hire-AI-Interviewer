@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +28,7 @@ import {
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
-export default function AddNewInterview({ open, setOpen }) {
+export default function AddNewInterview({ open, setOpen, jobDetails, jobDetailsId }) {
   if (!open) return null;
     const [interviewType, setInterviewType] = useState(""); // Initially empty, user selects one
     const [jobPosition, setJobPosition] = useState("");
@@ -66,6 +66,18 @@ export default function AddNewInterview({ open, setOpen }) {
     setCategory("");
     setCategoryError("");
     };
+
+    // Optionally pre-fill fields from jobDetails
+    useEffect(() => {
+        if (jobDetails) {
+            if (jobDetails.jobTitle) setJobPosition(jobDetails.jobTitle);
+            if (jobDetails.careerLevel) setCareerLevel(jobDetails.careerLevel);
+            if (jobDetails.jobDescription) setJobDesc(jobDetails.jobDescription);
+            if (jobDetails.skills) setSkills(jobDetails.skills);
+            if (jobDetails.education) setEducation(jobDetails.education);
+            // ...add more pre-fills as needed
+        }
+    }, [jobDetails]);
 
     const onSubmit = async (e) => {
         e.preventDefault();
@@ -246,28 +258,37 @@ export default function AddNewInterview({ open, setOpen }) {
         console.log("AI Response:", mockJsonResp);
         setJsonResponse(mockJsonResp);
         
+        // Debug log for jobDetailsId
+        console.log('Saving interview with jobDetailsId:', jobDetailsId);
+        // Exclude id from jobDetails to avoid overwriting jobDetailsId
+        const { id, ...restJobDetails } = jobDetails || {};
+        const interviewData = {
+          mockId: uuidv4(),
+          jsonMockResp: mockJsonResp,
+          jobPosition,
+          jobDesc,
+          jobRes,
+          jobReq,
+          perfSkills,
+          careerLevel,
+          jobExperience,
+          skills,
+          education,
+          achievements,
+          projects,
+          createdBy: user?.primaryEmailAddress?.emailAddress,
+          createdAt: moment().format("DD-MM-YYYY"),
+          interviewType,
+          category,
+          ...restJobDetails,
+          jobDetailsId,
+        };
+        // Debug log for interviewData
+        console.log('Interview data to save:', interviewData);
         const resp = await db
             .insert(MockInterview)
-            .values({
-            mockId: uuidv4(),
-            jsonMockResp: mockJsonResp,
-            jobPosition,
-            jobDesc,
-            jobRes,
-            jobReq,
-            perfSkills,
-            careerLevel,
-            jobExperience,
-            skills,
-            education,
-            achievements,
-            projects,
-            createdBy: user?.primaryEmailAddress?.emailAddress,
-            createdAt: moment().format("DD-MM-YYYY"),
-          interviewType,
-          category
-        })
-        .returning({ mockId: MockInterview.mockId });
+            .values(interviewData)
+            .returning({ mockId: MockInterview.mockId });
 
       if (resp.length > 0) {
         resetForm();

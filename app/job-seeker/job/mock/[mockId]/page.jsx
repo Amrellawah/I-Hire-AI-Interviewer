@@ -11,6 +11,7 @@ export default function MockJobDetailsPage() {
   const { mockId } = useParams();
   const router = useRouter();
   const [job, setJob] = useState(null);
+  const [jobDetails, setJobDetails] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,9 +22,18 @@ export default function MockJobDetailsPage() {
   const fetchJob = async () => {
     try {
       const result = await db.select().from(MockInterview).where(eq(MockInterview.mockId, mockId));
-      setJob(result[0] || null);
+      const interview = result[0] || null;
+      setJob(interview);
+
+      // Fetch job details if jobDetailsId exists
+      if (interview?.jobDetailsId) {
+        const res = await fetch(`/api/job-details/${interview.jobDetailsId}`);
+        const details = await res.json();
+        setJobDetails(details);
+      }
     } catch (error) {
       setJob(null);
+      setJobDetails(null);
     } finally {
       setLoading(false);
     }
@@ -82,6 +92,27 @@ export default function MockJobDetailsPage() {
             <h3 className="font-semibold text-[#be3144] mb-2">Job Description</h3>
             <p className="text-[#191011] text-base whitespace-pre-line">{job.jobDesc || 'No description provided.'}</p>
           </div>
+          {jobDetails && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div><b>Job Title:</b> {jobDetails.jobTitle}</div>
+              <div><b>Categories:</b> {jobDetails.jobCategories?.join(', ')}</div>
+              <div><b>Types:</b> {jobDetails.jobTypes?.join(', ')}</div>
+              <div><b>Workplace:</b> {jobDetails.workplace}</div>
+              <div><b>Country:</b> {jobDetails.country}</div>
+              <div><b>City:</b> {jobDetails.city}</div>
+              <div><b>Career Level:</b> {jobDetails.careerLevel}</div>
+              <div><b>Experience:</b> {jobDetails.minExperience} - {jobDetails.maxExperience}</div>
+              <div><b>Salary:</b> {jobDetails.minSalary} - {jobDetails.maxSalary} {jobDetails.currency} ({jobDetails.period})</div>
+              <div><b>Vacancies:</b> {jobDetails.vacancies}</div>
+              <div><b>Job Description:</b> {jobDetails.jobDescription}</div>
+              <div><b>Requirements:</b> {jobDetails.jobRequirements}</div>
+              <div><b>Skills:</b> {jobDetails.skills}</div>
+              <div><b>Gender:</b> {jobDetails.gender}</div>
+              <div><b>Education:</b> {jobDetails.education}</div>
+              <div><b>Academic Excellence:</b> {jobDetails.academicExcellence ? 'Yes' : 'No'}</div>
+              <div><b>Created At:</b> {new Date(jobDetails.createdAt).toLocaleString()}</div>
+            </div>
+          )}
           <Button
             className="w-full bg-gradient-to-r from-[#be3144] to-[#f05941] hover:from-[#f05941] hover:to-[#ff7b54] text-white text-lg mt-4"
             size="lg"

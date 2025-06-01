@@ -1,3 +1,5 @@
+// Removed JobPost table definition
+
 import { pgTable, serial, varchar, integer, boolean, text, timestamp } from 'drizzle-orm/pg-core';
 
 export const JobPost = pgTable('JobPost', {

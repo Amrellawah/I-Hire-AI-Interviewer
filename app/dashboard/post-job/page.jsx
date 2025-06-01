@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { X, ChevronDown, ChevronUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import CreateOptions from '../_components/CreateOptions';
 
 const jobCategories = [
   'Accounting/Finance',
@@ -79,6 +80,8 @@ const periodOptions = [
 ];
 
 export default function PostJobPage() {
+  const [step, setStep] = useState('jobDetails'); // 'jobDetails' | 'chooseType'
+  const [jobDetails, setJobDetails] = useState(null);
   const [selectedCountry, setSelectedCountry] = useState('Egypt');
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -125,79 +128,79 @@ export default function PostJobPage() {
   const handleWorkplace = (wp) => setSelectedWorkplace(wp);
   const handleCareer = (cl) => setSelectedCareer(cl);
 
-  const handleSubmit = async (e) => {
+  const handleJobDetailsSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setSuccess(false);
+    // Collect all job details into an object
+    const details = {
+      jobTitle,
+      jobCategories: selectedCategories,
+      jobTypes: selectedTypes,
+      workplace: selectedWorkplace,
+      country: selectedCountry,
+      city: selectedCity,
+      careerLevel: selectedCareer,
+      minExperience: minExp ? parseInt(minExp) : null,
+      maxExperience: maxExp ? parseInt(maxExp) : null,
+      minSalary: minSalary ? parseInt(minSalary) : null,
+      maxSalary: maxSalary ? parseInt(maxSalary) : null,
+      currency,
+      period,
+      hideSalary,
+      additionalSalary,
+      vacancies,
+      jobDescription: jobDesc,
+      jobRequirements: jobReq,
+      skills,
+      gender,
+      education,
+      academicExcellence,
+    };
     try {
-      const res = await fetch('/api/post-job', {
+      const response = await fetch('/api/job-details', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jobTitle,
-          jobCategories: selectedCategories,
-          jobTypes: selectedTypes,
-          workplace: selectedWorkplace,
-          country: selectedCountry,
-          city: selectedCity,
-          careerLevel: selectedCareer,
-          minExperience: minExp ? parseInt(minExp) : null,
-          maxExperience: maxExp ? parseInt(maxExp) : null,
-          minSalary: minSalary ? parseInt(minSalary) : null,
-          maxSalary: maxSalary ? parseInt(maxSalary) : null,
-          currency,
-          period,
-          hideSalary,
-          additionalSalary,
-          vacancies,
-          jobDescription: jobDesc,
-          jobRequirements: jobReq,
-          skills,
-          gender,
-          education,
-          academicExcellence,
-        }),
+        body: JSON.stringify(details),
       });
-      const data = await res.json();
-      if (res.ok) {
-        setSuccess(true);
-        // Optionally reset form
-        setJobTitle('');
-        setSelectedCategories([]);
-        setSelectedTypes([]);
-        setSelectedWorkplace('');
-        setSelectedCountry('Egypt');
-        setSelectedCity('');
-        setSelectedCareer('');
-        setMinExp('');
-        setMaxExp('');
-        setMinSalary('');
-        setMaxSalary('');
-        setHideSalary(false);
-        setAdditionalSalary('');
-        setVacancies(1);
-        setJobDesc('');
-        setJobReq('');
-        setSkills('');
-        setCurrency('EGP');
-        setPeriod('Per Month');
-        setGender('');
-        setEducation('');
-        setAcademicExcellence(false);
-        setTimeout(() => router.push('/dashboard/interview-options'), 1200);
+      const data = await response.json();
+      if (data.success) {
+        setJobDetails({ ...details, id: data.id });
+        setStep('chooseType');
       } else {
-        setError(data.error || 'Failed to post job');
+        setError('Failed to save job details');
       }
     } catch (err) {
-      setError('Failed to post job');
+      setError('Failed to save job details');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleChooseType = (type) => {
+    if (!jobDetails || !jobDetails.id) {
+      setError('Job details must be saved first.');
+      return;
+    }
+    if (type === 'mock') {
+      router.push(`/dashboard/create-mock-interview?jobDetailsId=${jobDetails.id}`);
+    } else if (type === 'call') {
+      router.push(`/dashboard/create-interview?jobDetailsId=${jobDetails.id}`);
+    }
+  };
+
+  if (step === 'chooseType') {
+    // Reuse your CreateOptions component, but override navigation to use handleChooseType
+    return (
+      <div className="min-h-screen bg-[#fdf4f4] flex items-center justify-center py-12">
+        <CreateOptions onChoose={handleChooseType} />
+      </div>
+    );
+  }
+
+  // Default: show job details form
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleJobDetailsSubmit}>
       <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-lg p-6 sm:p-10 my-10 border border-gray-100">
         <h2 className="text-3xl font-extrabold mb-8 text-[#191011] tracking-tight">Job Details</h2>
         <div className="space-y-8">

@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS "JobPost";
+DROP TABLE IF EXISTS "JobDetails"; 

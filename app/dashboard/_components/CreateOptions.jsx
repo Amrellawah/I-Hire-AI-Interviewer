@@ -4,7 +4,7 @@ import Link from 'next/link'
 import React from 'react'
 import { useRouter } from 'next/navigation'
 
-function CreateOptions() {
+function CreateOptions({ onChoose }) {
   const router = useRouter();
   return (
     <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
@@ -17,7 +17,7 @@ function CreateOptions() {
           hover:border-primary hover:shadow-lg transition-all
           overflow-hidden
         '
-        onClick={() => router.push('/dashboard/create-mock-interview')}
+        onClick={() => onChoose ? onChoose('mock') : router.push('/dashboard/create-mock-interview')}
       >
         {/* Background highlight on hover */}
         <div className='
@@ -47,8 +47,7 @@ function CreateOptions() {
         </div>
       </div>
       {/* Call Interview Card */}
-      <Link 
-        href={'/dashboard/create-interview'} 
+      <div
         className='
           group relative
           bg-white border border-gray-200 rounded-xl p-6 
@@ -56,6 +55,7 @@ function CreateOptions() {
           hover:border-primary hover:shadow-lg transition-all
           overflow-hidden
         '
+        onClick={() => onChoose ? onChoose('call') : router.push('/dashboard/create-interview')}
       >
         {/* Background highlight on hover */}
         <div className='
@@ -83,7 +83,7 @@ function CreateOptions() {
         '>
           Get started →
         </div>
-      </Link>
+      </div>
     </div>
   )
 }

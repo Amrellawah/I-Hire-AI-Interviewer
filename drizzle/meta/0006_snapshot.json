@@ -1,0 +1,539 @@
+{
+  "id": "4d6ddded-20c6-485b-ad74-359c16a862aa",
+  "prevId": "8409fd9d-a268-4ab5-a10a-9bb0c7f054a7",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.JobPost": {
+      "name": "JobPost",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "jobTitle": {
+          "name": "jobTitle",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "jobCategories": {
+          "name": "jobCategories",
+          "type": "varchar(255)[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "jobTypes": {
+          "name": "jobTypes",
+          "type": "varchar(255)[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "workplace": {
+          "name": "workplace",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country": {
+          "name": "country",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "city": {
+          "name": "city",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "careerLevel": {
+          "name": "careerLevel",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "minExperience": {
+          "name": "minExperience",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "maxExperience": {
+          "name": "maxExperience",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "minSalary": {
+          "name": "minSalary",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "maxSalary": {
+          "name": "maxSalary",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "period": {
+          "name": "period",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hideSalary": {
+          "name": "hideSalary",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "additionalSalary": {
+          "name": "additionalSalary",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vacancies": {
+          "name": "vacancies",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "jobDescription": {
+          "name": "jobDescription",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "jobRequirements": {
+          "name": "jobRequirements",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "skills": {
+          "name": "skills",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gender": {
+          "name": "gender",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "education": {
+          "name": "education",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "academicExcellence": {
+          "name": "academicExcellence",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recruiterEmail": {
+          "name": "recruiterEmail",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recruiterName": {
+          "name": "recruiterName",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.mockInterview": {
+      "name": "mockInterview",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "jsonMockResp": {
+          "name": "jsonMockResp",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "jobPosition": {
+          "name": "jobPosition",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "jobDesc": {
+          "name": "jobDesc",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "jobExperience": {
+          "name": "jobExperience",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdBy": {
+          "name": "createdBy",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mockId": {
+          "name": "mockId",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "jobPostId": {
+          "name": "jobPostId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "mockInterview_jobPostId_JobPost_id_fk": {
+          "name": "mockInterview_jobPostId_JobPost_id_fk",
+          "tableFrom": "mockInterview",
+          "tableTo": "JobPost",
+          "columnsFrom": [
+            "jobPostId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.userAnswer": {
+      "name": "userAnswer",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "mockId": {
+          "name": "mockId",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "question": {
+          "name": "question",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correctAns": {
+          "name": "correctAns",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "userAns": {
+          "name": "userAns",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "feedback": {
+          "name": "feedback",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rating": {
+          "name": "rating",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "suggestions": {
+          "name": "suggestions",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "userEmail": {
+          "name": "userEmail",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "needsFollowUp": {
+          "name": "needsFollowUp",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "suggestedFollowUp": {
+          "name": "suggestedFollowUp",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.CallInterview": {
+      "name": "CallInterview",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "jobPosition": {
+          "name": "jobPosition",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "jobDescription": {
+          "name": "jobDescription",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duration": {
+          "name": "duration",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "category": {
+          "name": "category",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "questionList": {
+          "name": "questionList",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recruiterName": {
+          "name": "recruiterName",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recruiterEmail": {
+          "name": "recruiterEmail",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "job_id": {
+          "name": "job_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "jobPostId": {
+          "name": "jobPostId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "CallInterview_jobPostId_JobPost_id_fk": {
+          "name": "CallInterview_jobPostId_JobPost_id_fk",
+          "tableFrom": "CallInterview",
+          "tableTo": "JobPost",
+          "columnsFrom": [
+            "jobPostId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "CallInterview_job_id_unique": {
+          "name": "CallInterview_job_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "job_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.CallInterviewFeedback": {
+      "name": "CallInterviewFeedback",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "userName": {
+          "name": "userName",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "userEmail": {
+          "name": "userEmail",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "job_id": {
+          "name": "job_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "feedback": {
+          "name": "feedback",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recommended": {
+          "name": "recommended",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "CallInterviewFeedback_job_id_CallInterview_job_id_fk": {
+          "name": "CallInterviewFeedback_job_id_CallInterview_job_id_fk",
+          "tableFrom": "CallInterviewFeedback",
+          "tableTo": "CallInterview",
+          "columnsFrom": [
+            "job_id"
+          ],
+          "columnsTo": [
+            "job_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
