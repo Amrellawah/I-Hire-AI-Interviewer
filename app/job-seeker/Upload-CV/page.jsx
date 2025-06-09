@@ -27,10 +27,10 @@ export default function CVUploadPage() {
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b border-[#f1e9ea] px-6 py-3 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#be3144] to-[#f05941] rounded-lg flex items-center justify-center group-hover:rotate-12 transition-transform shadow-md">
-              <Lightbulb className="w-5 h-5 text-white" />
+            <div className="w-14 h-14 flex items-center justify-center overflow-hidden">
+              <img src="/logo.png" alt="logo" className="w-12 h-12 object-contain" />
             </div>
-            <h1 className="text-xl font-bold text-[#191011]">AI Interviewer</h1>
+            <span className="text-3xl font-bold bg-gradient-to-r from-[#be3144] to-[#f05941] bg-clip-text text-transparent">I-Hire</span>
           </Link>
 
           <div className="flex items-center gap-4">

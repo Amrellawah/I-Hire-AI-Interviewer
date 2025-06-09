@@ -158,6 +158,7 @@ export default function JobSeekerPage() {
             </Link>
             {/* Job seeker actions */}
             <div className="flex items-center gap-4">
+              {/* Desktop Upload CV button */}
               <Button 
                 variant="outline" 
                 className="hidden md:flex items-center gap-2 border-[#be3144] text-[#be3144] hover:bg-[#f1e9ea] transition-colors"
@@ -187,6 +188,17 @@ export default function JobSeekerPage() {
         </header>
       </div>
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Mobile Upload CV button */}
+        <div className="block md:hidden mb-8 px-2">
+          <Button
+            className="w-full py-4 text-lg font-bold rounded-2xl shadow-lg bg-gradient-to-r from-[#be3144] to-[#f05941] text-white flex items-center justify-center gap-3 transition-all duration-200 active:scale-95"
+            onClick={() => router.push('/job-seeker/Upload-CV')}
+            style={{ minHeight: 56 }}
+          >
+            <span>Upload CV</span>
+            <ChevronRight className="w-6 h-6" />
+          </Button>
+        </div>
         {/* Enhanced Hero Section */}
         <section className="relative rounded-2xl overflow-hidden mb-12 shadow-xl">
           <div className="absolute inset-0 bg-gradient-to-r from-[#be3144]/90 to-[#f05941]/80 z-10"></div>

@@ -28,6 +28,15 @@ function CreateInterview() {
       }
     }, [jobDetailsId]);
 
+    useEffect(() => {
+      if (jobDetailsId) {
+        setFormData(prev => ({
+          ...prev,
+          jobDetailsId: Number(jobDetailsId)
+        }));
+      }
+    }, [jobDetailsId]);
+
     const onHandleInputChange = (field, value) => {
         setFormData(prev => ({
             ...prev,

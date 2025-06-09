@@ -1,6 +1,6 @@
 "use client"
 import { useState, useRef } from 'react';
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, Loader2, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function CVUploadComponent() {
@@ -10,6 +10,8 @@ export default function CVUploadComponent() {
   const [uploadStatus, setUploadStatus] = useState(null); // 'success', 'error', null
   const [errorMessage, setErrorMessage] = useState('');
   const [parsedData, setParsedData] = useState(null);
+  const [feedback, setFeedback] = useState('');
+  const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
   const fileInputRef = useRef(null);
   
   // Handle drag events
@@ -79,6 +81,7 @@ export default function CVUploadComponent() {
     setUploadStatus(null);
     setErrorMessage('');
     setParsedData(null);
+    setFeedback('');
     
     try {
       // Create form data
@@ -103,10 +106,24 @@ export default function CVUploadComponent() {
       
       setParsedData(data);
       setUploadStatus('success');
+      
+      // Send extracted text to feedback API
+      if (data.text) {
+        setIsFeedbackLoading(true);
+        const feedbackRes = await fetch('/api/cv-feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cvText: data.text }),
+        });
+        const feedbackData = await feedbackRes.json();
+        setFeedback(feedbackData.feedback);
+        setIsFeedbackLoading(false);
+      }
     } catch (error) {
       console.error('Error uploading CV:', error);
       setUploadStatus('error');
       setErrorMessage(error.message || 'There was an error processing your CV. Please try again.');
+      setIsFeedbackLoading(false);
     } finally {
       setIsUploading(false);
     }
@@ -220,6 +237,18 @@ export default function CVUploadComponent() {
                 <p className="text-[#191011]">{value}</p>
               </div>
             ))}
+          </div>
+          <div className="mt-8">
+            <h3 className="text-lg font-bold text-[#be3144] mb-2 flex items-center gap-2">
+              <MessageCircle className="w-5 h-5 text-[#be3144]" /> CV Feedback
+            </h3>
+            {isFeedbackLoading ? (
+              <div className="flex items-center gap-2 text-[#8e575f]">
+                <Loader2 className="w-4 h-4 animate-spin" /> Generating feedback...
+              </div>
+            ) : feedback ? (
+              <div className="bg-[#f1e9ea] p-4 rounded-lg text-[#191011] whitespace-pre-line">{feedback}</div>
+            ) : null}
           </div>
         </div>
       )}
