@@ -1,10 +1,10 @@
 "use client";
+import React, { useState, useEffect, Suspense } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useState, useEffect } from 'react';
 import AddNewInterview from '../_components/AddNewInterview';
 
-export default function CreateMockInterview() {
+function CreateMockInterview() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const jobDetailsId = searchParams.get('jobDetailsId');
@@ -38,5 +38,13 @@ export default function CreateMockInterview() {
       </div>
       <AddNewInterview open={true} setOpen={() => {}} jobDetails={jobDetails} jobDetailsId={jobDetailsId} />
     </div>
+  );
+}
+
+export default function CreateMockInterviewWithSuspense(props) {
+  return (
+    <Suspense>
+      <CreateMockInterview {...props} />
+    </Suspense>
   );
 } 
