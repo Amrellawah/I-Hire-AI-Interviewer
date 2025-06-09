@@ -2,7 +2,7 @@
 import { Progress } from '@/components/ui/progress';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import FormContainer from './_components/FormContainer';
 import QuestionList from './_components/QuestionList';
 import { toast } from 'sonner';
@@ -149,4 +149,10 @@ function CreateInterview() {
     );
 }
 
-export default CreateInterview;
+export default function CreateInterviewPageWithSuspense(props) {
+  return (
+    <Suspense>
+      <CreateInterview {...props} />
+    </Suspense>
+  );
+}
