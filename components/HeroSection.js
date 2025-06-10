@@ -45,7 +45,7 @@ export default function HeroSection() {
                 </button>
               </Link>
 
-              <Link href="/dashboard">
+              <Link href="/employer">
                 <button className="h-14 min-w-[160px] rounded-xl border-2 border-[#be3144]/30 bg-white px-6 text-base font-bold text-[#191011] shadow-md transition-all duration-300 hover:border-[#be3144]/50 hover:bg-[#f1e9ea] hover:shadow-lg md:h-16 md:min-w-[180px] md:text-lg">
                   I'm an Employer
                 </button>
