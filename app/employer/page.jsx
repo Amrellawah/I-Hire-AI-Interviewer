@@ -102,10 +102,10 @@ export default function EmployerLandingPage() {
               alt="Office background"
               fill
               className="object-cover object-center"
-              style={{ filter: 'brightness(1.2)' }}
+              style={{ filter: 'brightness(1.15)' }}
               priority
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#be3144]/90 to-[#f05941]/80" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#be3144]/80 to-[#f05941]/60" />
           </div>
           {/* Content */}
           <div className="relative z-10 flex flex-col justify-center items-center text-center space-y-8 p-4 sm:p-8 md:p-12 w-full min-h-[100vh]">
