@@ -1,17 +1,20 @@
 "use client"
 import { useState, useRef } from 'react';
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2, MessageCircle } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, Loader2, MessageCircle, X, Download, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 
 export default function CVUploadComponent() {
   const [file, setFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState(null); // 'success', 'error', null
   const [errorMessage, setErrorMessage] = useState('');
   const [parsedData, setParsedData] = useState(null);
   const [feedback, setFeedback] = useState('');
   const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const fileInputRef = useRef(null);
   
   // Handle drag events
@@ -50,6 +53,15 @@ export default function CVUploadComponent() {
       validateAndSetFile(e.target.files[0]);
     }
   };
+
+  const handleRemoveFile = () => {
+    setFile(null);
+    setUploadStatus(null);
+    setErrorMessage('');
+    setParsedData(null);
+    setFeedback('');
+    setUploadProgress(0);
+  };
   
   const validateAndSetFile = (file) => {
     // Check file type (PDF, DOCX, etc.)
@@ -82,6 +94,7 @@ export default function CVUploadComponent() {
     setErrorMessage('');
     setParsedData(null);
     setFeedback('');
+    setUploadProgress(0);
     
     try {
       // Create form data
@@ -94,6 +107,8 @@ export default function CVUploadComponent() {
         body: formData,
       });
       
+      setUploadProgress(30); // Update progress after initial upload
+      
       const data = await response.json();
       
       if (!response.ok) {
@@ -103,6 +118,8 @@ export default function CVUploadComponent() {
       if (data.error) {
         throw new Error(data.error);
       }
+      
+      setUploadProgress(50); // Update progress before analysis
       
       // Send extracted text to CV analysis API
       const analysisResponse = await fetch('/api/cv-analyze', {
@@ -116,6 +133,8 @@ export default function CVUploadComponent() {
       if (!analysisResponse.ok) {
         throw new Error(analysisData.error || 'Analysis failed');
       }
+      
+      setUploadProgress(80); // Update progress after analysis
       
       setParsedData(analysisData);
       setUploadStatus('success');
@@ -132,13 +151,29 @@ export default function CVUploadComponent() {
         setFeedback(feedbackData.feedback);
         setIsFeedbackLoading(false);
       }
+      
+      setUploadProgress(100); // Complete progress
     } catch (error) {
       console.error('Error uploading CV:', error);
       setUploadStatus('error');
       setErrorMessage(error.message || 'There was an error processing your CV. Please try again.');
       setIsFeedbackLoading(false);
+      setUploadProgress(0);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleDownloadCV = () => {
+    if (file) {
+      const url = URL.createObjectURL(file);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
   };
   
@@ -165,7 +200,7 @@ export default function CVUploadComponent() {
           </h3>
           
           <p className="text-[#8e575f] mb-6 max-w-md">
-            Drag and drop your CV file here, or click to browse
+            Drag and drop your CV file here, or click to browse. Supported formats: PDF, DOCX
           </p>
           
           <input
@@ -186,19 +221,25 @@ export default function CVUploadComponent() {
           </Button>
           
           {file && (
-            <div className="mt-6 flex items-center gap-2 text-[#191011]">
+            <div className="mt-6 flex items-center gap-2 text-[#191011] bg-[#f1e9ea] p-3 rounded-lg">
               <FileText className="w-5 h-5 text-[#be3144]" />
               <span className="font-medium">{file.name}</span>
               <span className="text-sm text-[#8e575f]">
                 ({(file.size / 1024 / 1024).toFixed(2)} MB)
               </span>
+              <button
+                onClick={handleRemoveFile}
+                className="ml-2 p-1 hover:bg-[#be3144]/10 rounded-full transition-colors"
+              >
+                <X className="w-4 h-4 text-[#be3144]" />
+              </button>
             </div>
           )}
         </div>
       </div>
       
       {file && (
-        <div className="mt-6">
+        <div className="mt-6 space-y-4">
           <Button
             onClick={handleUpload}
             disabled={isUploading}
@@ -213,6 +254,18 @@ export default function CVUploadComponent() {
               'Upload and Parse CV'
             )}
           </Button>
+
+          {isUploading && (
+            <div className="space-y-2">
+              <Progress value={uploadProgress} className="h-2" />
+              <p className="text-sm text-[#8e575f] text-center">
+                {uploadProgress < 30 ? 'Uploading file...' :
+                 uploadProgress < 50 ? 'Extracting text...' :
+                 uploadProgress < 80 ? 'Analyzing content...' :
+                 'Generating feedback...'}
+              </p>
+            </div>
+          )}
         </div>
       )}
       
@@ -239,9 +292,31 @@ export default function CVUploadComponent() {
       
       {parsedData && (
         <div className="mt-8 bg-white border border-[#e4d3d5] rounded-xl p-6">
-          <h3 className="text-lg font-bold text-[#191011] mb-4">
-            Extracted Information
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-[#191011]">
+              Extracted Information
+            </h3>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditing(!isEditing)}
+                className="border-[#be3144] text-[#be3144] hover:bg-[#be3144]/10"
+              >
+                <Edit2 className="w-4 h-4 mr-2" />
+                {isEditing ? 'Save Changes' : 'Edit Information'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadCV}
+                className="border-[#be3144] text-[#be3144] hover:bg-[#be3144]/10"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download CV
+              </Button>
+            </div>
+          </div>
           
           <div className="space-y-6">
             {/* Personal Information */}
@@ -357,7 +432,9 @@ export default function CVUploadComponent() {
               </div>
             )}
           </div>
-          <div className="mt-8">
+
+          {/* Feedback Section */}
+          <div className="mt-8 pt-6 border-t border-[#e4d3d5]">
             <h3 className="text-lg font-bold text-[#be3144] mb-2 flex items-center gap-2">
               <MessageCircle className="w-5 h-5 text-[#be3144]" /> CV Feedback
             </h3>
@@ -366,7 +443,9 @@ export default function CVUploadComponent() {
                 <Loader2 className="w-4 h-4 animate-spin" /> Generating feedback...
               </div>
             ) : feedback ? (
-              <div className="bg-[#f1e9ea] p-4 rounded-lg text-[#191011] whitespace-pre-line">{feedback}</div>
+              <div className="bg-[#f1e9ea] p-4 rounded-lg text-[#191011] whitespace-pre-line">
+                {feedback}
+              </div>
             ) : null}
           </div>
         </div>

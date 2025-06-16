@@ -236,176 +236,88 @@ export default function EmployerLandingPage() {
         </section>
 
         {/* CTA Section */}
-        <section className="mt-16 bg-gradient-to-r from-[#be3144] to-[#f05941] py-16 text-white rounded-2xl shadow-lg">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-4xl mx-auto text-center">
-              <h2 className="text-3xl md:text-4xl font-bold mb-6">
-                Ready to transform your hiring process?
-              </h2>
-              <p className="text-lg mb-8 opacity-90">
-                Join thousands of companies who found their perfect hires with I-Hire.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button
-                  size="lg"
-                  className="px-8 py-6 text-lg font-semibold bg-white text-[#be3144] hover:bg-gray-100 shadow-md focus:ring-2 focus:ring-[#be3144]"
-                  onClick={() => router.push('/sign-up')}
-                >
-                  Start Free Trial
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="px-8 py-6 text-lg font-semibold border-white text-white hover:bg-white/10 focus:ring-2 focus:ring-[#be3144]"
-                  onClick={() => router.push('/demo')}
-                >
-                  Request Demo
-                </Button>
-              </div>
-              <p className="mt-4 text-sm opacity-80">
-                No credit card required • 14-day free trial
-              </p>
+        <section className="mt-16 bg-gradient-to-r from-[#be3144] to-[#f05941] py-16 text-white rounded-3xl shadow-2xl border-2 border-white/20 mx-2 md:mx-0 relative overflow-hidden">
+          <div className="absolute inset-0 pointer-events-none rounded-3xl border-2 border-white/10" style={{boxShadow: '0 8px 32px 0 rgba(190,49,68,0.12)'}} />
+          <div className="max-w-4xl mx-auto text-center relative z-10">
+            <div className="flex justify-center mb-6">
+              <div className="w-24 h-2 bg-gradient-to-r from-[#ffd700] to-[#fff] rounded-full shadow-lg"></div>
             </div>
+            <h2 className="text-4xl md:text-5xl font-extrabold mb-6 drop-shadow-lg tracking-tight">
+              Ready to transform your hiring process?
+            </h2>
+            <p className="text-lg mb-10 opacity-90 font-medium">
+              Join thousands of companies who found their perfect hires with I-Hire.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-2">
+              <Button
+                size="lg"
+                className="px-10 py-6 text-lg font-bold bg-white text-[#be3144] hover:bg-[#f1e9ea] hover:text-[#be3144] shadow-xl rounded-xl transition-all duration-200 border-2 border-white/40 focus:ring-2 focus:ring-[#be3144]"
+                onClick={() => router.push('/sign-up')}
+              >
+                Start Free Trial
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="px-10 py-6 text-lg font-bold border-white text-white hover:bg-white/10 hover:text-[#ffd700] rounded-xl border-2 focus:ring-2 focus:ring-[#be3144] transition-all duration-200"
+                onClick={() => router.push('/demo')}
+              >
+                Request Demo
+              </Button>
+            </div>
+            <p className="mt-6 text-base opacity-90 font-medium">
+              No credit card required &bull; 14-day free trial
+            </p>
           </div>
         </section>
       </main>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12 mt-16">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
-            <div className="lg:col-span-2">
-              <Link href="/" className="flex items-center gap-3 mb-6">
-                <Image 
-                  src="/logo-white.png" 
-                  width={40} 
-                  height={40} 
-                  alt="I-Hire Logo" 
-                  className="object-contain"
-                  loading="lazy"
-                />
-                <span className="text-2xl font-bold text-white">
-                  I-Hire
-                </span>
-              </Link>
-              <p className="text-gray-400">
-                Egypt's leading recruitment platform connecting employers with top talent through innovative AI technology.
-              </p>
-              {/* Newsletter Signup */}
-              <form className="mt-6 flex flex-col sm:flex-row gap-2 max-w-md" onSubmit={e => { e.preventDefault(); /* handle newsletter signup */ }}>
-                <input type="email" required placeholder="Your email address" className="flex-1 px-4 py-2 rounded-l-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#be3144]" />
-                <Button type="submit" className="rounded-r-lg bg-gradient-to-r from-[#be3144] to-[#f05941] text-white font-semibold px-6 focus:ring-2 focus:ring-[#be3144]">Subscribe</Button>
-              </form>
+      <footer className="bg-gradient-to-br from-[#191011] via-[#23202b] to-[#2B2D42] text-white pt-14 pb-8 px-4 border-t-4 border-[#be3144] mt-12 shadow-inner">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:justify-between md:items-start gap-10 md:gap-8">
+          {/* Logo and brand */}
+          <div className="flex-1 flex flex-col items-center md:items-start mb-8 md:mb-0">
+            <div className="flex items-center gap-4 mb-4">
+              <Image src="/logo.png" width={56} height={56} alt="I-Hire Logo" className="drop-shadow-lg" />
+              <span className="text-3xl font-extrabold bg-gradient-to-r from-[#fff] to-[#f1e9ea] bg-clip-text text-transparent tracking-wide">I-Hire</span>
             </div>
-
-            <div>
-              <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">
-                For Employers
-              </h3>
-              <ul className="space-y-3">
-                <li>
-                  <Link href="/post-job" className="text-gray-400 hover:text-white transition-colors focus:ring-2 focus:ring-[#be3144] rounded">
-                    Post a Job
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/search-cvs" className="text-gray-400 hover:text-white transition-colors focus:ring-2 focus:ring-[#be3144] rounded">
-                    Search CVs
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/pricing" className="text-gray-400 hover:text-white transition-colors focus:ring-2 focus:ring-[#be3144] rounded">
-                    Pricing
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/solutions" className="text-gray-400 hover:text-white transition-colors focus:ring-2 focus:ring-[#be3144] rounded">
-                    Solutions
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">
-                Resources
-              </h3>
-              <ul className="space-y-3">
-                <li>
-                  <Link href="/blog" className="text-gray-400 hover:text-white transition-colors focus:ring-2 focus:ring-[#be3144] rounded">
-                    Blog
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/help-center" className="text-gray-400 hover:text-white transition-colors focus:ring-2 focus:ring-[#be3144] rounded">
-                    Help Center
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/webinars" className="text-gray-400 hover:text-white transition-colors focus:ring-2 focus:ring-[#be3144] rounded">
-                    Webinars
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/guides" className="text-gray-400 hover:text-white transition-colors focus:ring-2 focus:ring-[#be3144] rounded">
-                    Hiring Guides
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">
-                Company
-              </h3>
-              <ul className="space-y-3">
-                <li>
-                  <Link href="/about" className="text-gray-400 hover:text-white transition-colors focus:ring-2 focus:ring-[#be3144] rounded">
-                    About Us
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/careers" className="text-gray-400 hover:text-white transition-colors focus:ring-2 focus:ring-[#be3144] rounded">
-                    Careers
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors focus:ring-2 focus:ring-[#be3144] rounded">
-                    Contact
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/privacy" className="text-gray-400 hover:text-white transition-colors focus:ring-2 focus:ring-[#be3144] rounded">
-                    Privacy Policy
-                  </Link>
-                </li>
-              </ul>
-            </div>
+            <p className="text-[#f1e9ea] text-base font-medium max-w-xs text-center md:text-left mb-2">Connecting talented professionals with top employers across the MENA region.</p>
+            <span className="inline-block bg-[#be3144] text-white text-xs font-semibold px-3 py-1 rounded-full mt-2 shadow">Empowering Your Career Journey</span>
           </div>
-
-          <div className="mt-12 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-400 text-sm">
-              © {new Date().getFullYear()} I-Hire. All rights reserved.
-            </p>
-            <div className="flex items-center gap-6 mt-4 md:mt-0">
-              <Link href="#" className="text-gray-400 hover:text-white" aria-label="Facebook">
-                <span className="sr-only">Facebook</span>
-                <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path fillRule="evenodd" d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" clipRule="evenodd" />
-                </svg>
-              </Link>
-              <Link href="#" className="text-gray-400 hover:text-white" aria-label="LinkedIn">
-                <span className="sr-only">LinkedIn</span>
-                <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
-                </svg>
-              </Link>
-              <Link href="#" className="text-gray-400 hover:text-white" aria-label="Twitter">
-                <span className="sr-only">Twitter</span>
-                <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
-                </svg>
-              </Link>
+          {/* Links */}
+          <div className="flex-1 grid grid-cols-2 gap-8 md:gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <h4 className="font-bold text-lg mb-4 text-[#be3144]">For Job Seekers</h4>
+              <ul className="space-y-2 text-[#f1e9ea] text-sm">
+                <li><Link href="/job-seeker/jobs" className="hover:text-[#be3144] transition-colors">Browse Jobs</Link></li>
+                <li><Link href="/job-seeker/applications" className="hover:text-[#be3144] transition-colors">My Applications</Link></li>
+                <li><Link href="/job-seeker/profile" className="hover:text-[#be3144] transition-colors">Profile</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold text-lg mb-4 text-[#be3144]">Company</h4>
+              <ul className="space-y-2 text-[#f1e9ea] text-sm">
+                <li><Link href="/about" className="hover:text-[#be3144] transition-colors">About Us</Link></li>
+                <li><Link href="/contact" className="hover:text-[#be3144] transition-colors">Contact</Link></li>
+                <li><Link href="/privacy" className="hover:text-[#be3144] transition-colors">Privacy Policy</Link></li>
+              </ul>
+            </div>
+            <div className="col-span-2 md:col-span-1">
+              <h4 className="font-bold text-lg mb-4 text-[#be3144]">Connect With Us</h4>
+              <div className="flex gap-4 mb-4 justify-center md:justify-start">
+                <Link href="#" className="w-9 h-9 bg-[#be3144] rounded-full flex items-center justify-center hover:bg-[#f05941] transition-colors" aria-label="Twitter">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z" /></svg>
+                </Link>
+                <Link href="#" className="w-9 h-9 bg-[#be3144] rounded-full flex items-center justify-center hover:bg-[#f05941] transition-colors" aria-label="Instagram">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" /></svg>
+                </Link>
+                <Link href="#" className="w-9 h-9 bg-[#be3144] rounded-full flex items-center justify-center hover:bg-[#f05941] transition-colors" aria-label="LinkedIn">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" /></svg>
+                </Link>
+              </div>
+              <p className="text-[#f1e9ea] text-xs text-center md:text-left">
+                © {new Date().getFullYear()} <span className="font-bold text-[#be3144]">I-Hire</span>. All rights reserved.
+              </p>
             </div>
           </div>
         </div>

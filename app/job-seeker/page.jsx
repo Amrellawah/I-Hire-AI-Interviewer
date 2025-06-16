@@ -9,7 +9,8 @@ import Link from 'next/link';
 import { 
   WebcamIcon, Briefcase, Star, Lightbulb, Search, 
   ArrowRight, Building2, Code, Paintbrush, Database,
-  ChevronRight, Loader2, BarChart2, Clock, User
+  ChevronRight, Loader2, BarChart2, Clock, User,
+  Pencil, Book, PhoneCall, HelpCircle, Info, Handshake, Mail, Settings, LogOut
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CallInterviewCard from '../dashboard/_components/CallInterviewCard';
@@ -27,6 +28,8 @@ export default function JobSeekerPage() {
   const [allJobs, setAllJobs] = useState([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   // Use the same jobCategories as in the jobs page for consistency
   const jobCategories = [
@@ -56,6 +59,22 @@ export default function JobSeekerPage() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    }
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [menuOpen]);
 
   const fetchInterviews = async () => {
     try {
@@ -169,10 +188,13 @@ export default function JobSeekerPage() {
               </Button>
               {isLoaded && user && (
                 <div className="relative">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#f1e9ea] to-[#e4d3d5] flex items-center justify-center overflow-hidden border-2 border-[#f1e9ea] hover:border-[#be3144] transition-colors shadow-sm">
-                    <img 
-                      src={user.imageUrl} 
-                      alt="Profile" 
+                  <div
+                    className="w-10 h-10 rounded-full bg-gradient-to-br from-[#f1e9ea] to-[#e4d3d5] flex items-center justify-center overflow-hidden border-2 border-[#f1e9ea] hover:border-[#be3144] transition-colors shadow-sm cursor-pointer"
+                    onClick={() => setMenuOpen((open) => !open)}
+                  >
+                    <img
+                      src={user.imageUrl}
+                      alt="Profile"
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -180,6 +202,62 @@ export default function JobSeekerPage() {
                     <span className="absolute -top-1 -right-1 bg-[#be3144] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                       {completedInterviews}
                     </span>
+                  )}
+                  {menuOpen && (
+                    <div
+                      ref={menuRef}
+                      className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-[#e4d3d5] z-50 overflow-hidden animate-fade-in"
+                      style={{ minWidth: 280 }}
+                    >
+                      <div className="p-5 border-b border-[#f1e9ea] flex items-center gap-4 bg-[#f9f6f6]">
+                        <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-[#f1e9ea]">
+                          <img src={user.imageUrl} alt="Profile" className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <div className="font-bold text-[#191011] truncate">{user.fullName || 'User'}</div>
+                          <div className="text-xs text-[#8e575f] truncate">{user.primaryEmailAddress?.emailAddress || 'email@example.com'}</div>
+                          <a
+                            href="#"
+                            onClick={e => {
+                              e.preventDefault();
+                              setMenuOpen(false);
+                              router.push('/job-seeker/profile');
+                            }}
+                            className="text-xs text-[#be3144] hover:underline mt-1"
+                          >
+                            View Profile
+                          </a>
+                        </div>
+                      </div>
+                      <div className="flex flex-col divide-y divide-[#f1e9ea]">
+                        <a href="#" className="flex items-center gap-4 px-6 py-4 hover:bg-[#f1e9ea] transition-colors text-[#191011] text-base font-medium">
+                          <Pencil className="w-5 h-5 text-[#191011]" /> Edit Profile
+                        </a>
+                        <a href="#" className="flex items-center gap-4 px-6 py-4 hover:bg-[#f1e9ea] transition-colors text-[#191011] text-base font-medium">
+                          <Book className="w-5 h-5 text-[#191011]" /> Career Readings
+                        </a>
+                        <a href="#" className="flex items-center gap-4 px-6 py-4 hover:bg-[#f1e9ea] transition-colors text-[#191011] text-base font-medium">
+                          <PhoneCall className="w-5 h-5 text-[#191011]" /> Help Center
+                        </a>
+                        <a href="#" className="flex items-center gap-4 px-6 py-4 hover:bg-[#f1e9ea] transition-colors text-[#191011] text-base font-medium">
+                          <Info className="w-5 h-5 text-[#191011]" /> About Us
+                        </a>
+                        <a href="#" className="flex items-center gap-4 px-6 py-4 hover:bg-[#f1e9ea] transition-colors text-[#191011] text-base font-medium">
+                          <Handshake className="w-5 h-5 text-[#191011]" /> Become A Partner
+                        </a>
+                        <a href="#" className="flex items-center gap-4 px-6 py-4 hover:bg-[#f1e9ea] transition-colors text-[#191011] text-base font-medium">
+                          <Mail className="w-5 h-5 text-[#191011]" /> Contact Us
+                        </a>
+                      </div>
+                      <div className="border-t border-[#f1e9ea] flex flex-col">
+                        <a href="#" className="flex items-center gap-4 px-6 py-4 hover:bg-[#f1e9ea] transition-colors text-[#191011] text-base font-medium">
+                          <Settings className="w-5 h-5 text-[#191011]" /> Account Settings
+                        </a>
+                        <a href="#" className="flex items-center gap-4 px-6 py-4 hover:bg-[#f9eaea] transition-colors text-[#be3144] text-base font-semibold">
+                          <LogOut className="w-5 h-5 text-[#be3144]" /> Logout
+                        </a>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}

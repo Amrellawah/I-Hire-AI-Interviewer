@@ -181,7 +181,7 @@ function Interview({params}) {
                 {/* Interview Details Section */}
                 <div className="space-y-6">
                     <div className="p-6 rounded-lg border bg-card shadow-sm">
-                        <h3 className="text-xl font-semibold mb-4">Interview Details</h3>
+                        <h3 className="text-xl font-semibold mb-4">Job Details</h3>
                         <div className="space-y-4">
                             <div>
                                 <p className="text-sm text-muted-foreground">Job Role</p>
