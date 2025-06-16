@@ -104,7 +104,20 @@ export default function CVUploadComponent() {
         throw new Error(data.error);
       }
       
-      setParsedData(data);
+      // Send extracted text to CV analysis API
+      const analysisResponse = await fetch('/api/cv-analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cvText: data.text }),
+      });
+      
+      const analysisData = await analysisResponse.json();
+      
+      if (!analysisResponse.ok) {
+        throw new Error(analysisData.error || 'Analysis failed');
+      }
+      
+      setParsedData(analysisData);
       setUploadStatus('success');
       
       // Send extracted text to feedback API
@@ -230,13 +243,119 @@ export default function CVUploadComponent() {
             Extracted Information
           </h3>
           
-          <div className="space-y-4">
-            {Object.entries(parsedData).map(([key, value]) => (
-              <div key={key}>
-                <p className="text-sm text-[#8e575f] mb-1">{key}</p>
-                <p className="text-[#191011]">{value}</p>
+          <div className="space-y-6">
+            {/* Personal Information */}
+            <div>
+              <h4 className="text-md font-semibold text-[#be3144] mb-2">Personal Information</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {parsedData.name && (
+                  <div>
+                    <p className="text-sm text-[#8e575f] mb-1">Name</p>
+                    <p className="text-[#191011]">{parsedData.name}</p>
+                  </div>
+                )}
+                {parsedData.email && (
+                  <div>
+                    <p className="text-sm text-[#8e575f] mb-1">Email</p>
+                    <p className="text-[#191011]">{parsedData.email}</p>
+                  </div>
+                )}
+                {parsedData.phone && (
+                  <div>
+                    <p className="text-sm text-[#8e575f] mb-1">Phone</p>
+                    <p className="text-[#191011]">{parsedData.phone}</p>
+                  </div>
+                )}
               </div>
-            ))}
+            </div>
+
+            {/* Education */}
+            {parsedData.education && parsedData.education.length > 0 && (
+              <div>
+                <h4 className="text-md font-semibold text-[#be3144] mb-2">Education</h4>
+                <div className="space-y-3">
+                  {parsedData.education.map((edu, index) => (
+                    <div key={index} className="border-l-2 border-[#e4d3d5] pl-4">
+                      <p className="font-medium text-[#191011]">{edu.degree}</p>
+                      <p className="text-[#8e575f]">{edu.institution}</p>
+                      <p className="text-sm text-[#8e575f]">{edu.year}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Experience */}
+            {parsedData.experience && parsedData.experience.length > 0 && (
+              <div>
+                <h4 className="text-md font-semibold text-[#be3144] mb-2">Work Experience</h4>
+                <div className="space-y-4">
+                  {parsedData.experience.map((exp, index) => (
+                    <div key={index} className="border-l-2 border-[#e4d3d5] pl-4">
+                      <p className="font-medium text-[#191011]">{exp.position}</p>
+                      <p className="text-[#8e575f]">{exp.company}</p>
+                      <p className="text-sm text-[#8e575f]">{exp.duration}</p>
+                      {exp.responsibilities && (
+                        <ul className="mt-2 list-disc list-inside text-[#191011]">
+                          {Array.isArray(exp.responsibilities) 
+                            ? exp.responsibilities.map((resp, idx) => (
+                                <li key={idx} className="text-sm">{resp}</li>
+                              ))
+                            : <li className="text-sm">{exp.responsibilities}</li>
+                          }
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Skills */}
+            {parsedData.skills && parsedData.skills.length > 0 && (
+              <div>
+                <h4 className="text-md font-semibold text-[#be3144] mb-2">Skills</h4>
+                <div className="flex flex-wrap gap-2">
+                  {parsedData.skills.map((skill, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 bg-[#f1e9ea] text-[#be3144] rounded-full text-sm"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Languages */}
+            {parsedData.languages && parsedData.languages.length > 0 && (
+              <div>
+                <h4 className="text-md font-semibold text-[#be3144] mb-2">Languages</h4>
+                <div className="flex flex-wrap gap-2">
+                  {parsedData.languages.map((language, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 bg-[#f1e9ea] text-[#be3144] rounded-full text-sm"
+                    >
+                      {language}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Certifications */}
+            {parsedData.certifications && parsedData.certifications.length > 0 && (
+              <div>
+                <h4 className="text-md font-semibold text-[#be3144] mb-2">Certifications</h4>
+                <div className="space-y-2">
+                  {parsedData.certifications.map((cert, index) => (
+                    <p key={index} className="text-[#191011]">{cert}</p>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div className="mt-8">
             <h3 className="text-lg font-bold text-[#be3144] mb-2 flex items-center gap-2">
