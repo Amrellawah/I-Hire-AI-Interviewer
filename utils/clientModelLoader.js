@@ -1,4 +1,5 @@
-import { pipeline } from '@xenova/transformers';
+// Remove the top-level import and make it conditional
+// import { pipeline } from '@xenova/transformers';
 
 class ClientJobMatcherModel {
   constructor() {
@@ -7,6 +8,7 @@ class ClientJobMatcherModel {
     this.loadingPromise = null;
     this.loadError = null;
     this.usingFallbackModel = false;
+    this.transformers = null;
   }
 
   async loadModel() {
@@ -26,11 +28,21 @@ class ClientJobMatcherModel {
     try {
       console.log('Loading AI job matching model...');
       
+      // Check if we're in a browser environment
+      if (typeof window === 'undefined') {
+        throw new Error('Model loading is not supported in server-side environment');
+      }
+      
+      // Dynamically import transformers only on client side
+      if (!this.transformers) {
+        this.transformers = await import('@xenova/transformers');
+      }
+      
       // Skip local model loading for now due to format compatibility issues
       // and go directly to the reliable fallback model
       console.log('Using pre-trained sentence transformer model for semantic matching...');
       
-      this.model = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
+      this.model = await this.transformers.pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
         quantized: false,
         progress_callback: (progress) => {
           console.log(`Loading AI model progress: ${Math.round(progress * 100)}%`);

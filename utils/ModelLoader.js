@@ -1,4 +1,5 @@
-import { pipeline, AutoTokenizer, AutoModel } from '@xenova/transformers';
+// Remove the top-level import and make it conditional
+// import { pipeline, AutoTokenizer, AutoModel } from '@xenova/transformers';
 
 class JobMatcherModel {
   constructor() {
@@ -7,6 +8,7 @@ class JobMatcherModel {
     this.isLoaded = false;
     this.loadingPromise = null;
     this.loadError = null;
+    this.transformers = null;
   }
 
   async loadModel() {
@@ -32,11 +34,16 @@ class JobMatcherModel {
         throw new Error('Model loading is not supported in server-side environment');
       }
       
+      // Dynamically import transformers only on client side
+      if (!this.transformers) {
+        this.transformers = await import('@xenova/transformers');
+      }
+      
       // Load the model from the local fine-tuned-job-matcher directory
       const modelPath = '/fine-tuned-job-matcher';
       
       // Create a custom pipeline for sentence similarity
-      this.model = await pipeline('feature-extraction', modelPath, {
+      this.model = await this.transformers.pipeline('feature-extraction', modelPath, {
         quantized: false,
         progress_callback: (progress) => {
           console.log(`Loading progress: ${Math.round(progress * 100)}%`);
