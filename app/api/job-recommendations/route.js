@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { db } from '@/utils/db';
 import { UserProfile, JobDetails, JobRecommendation, callInterview, MockInterview } from '@/utils/schema';
 import { eq, and, or, like, inArray } from 'drizzle-orm';
-import jobMatcherService from '@/utils/jobMatcherModel';
 
 export async function GET(req) {
   try {
@@ -73,13 +72,37 @@ export async function GET(req) {
     console.log('User profile:', userProfile);
     console.log('All jobs:', allJobs);
 
-    // Generate recommendations using the job matcher service
-    // This will automatically use fallback if model is not available
-    const recommendations = await jobMatcherService.generateRecommendations(
-      userProfile, 
-      allJobs, 
-      limit
-    );
+    // Dynamically import jobMatcherService to avoid build issues
+    let jobMatcherService;
+    let modelStatus = { isLoaded: false, message: 'Model not available in server environment' };
+    let recommendations = [];
+    
+    try {
+      const jobMatcherModule = await import('@/utils/jobMatcherModel');
+      jobMatcherService = jobMatcherModule.default;
+      
+      // Generate recommendations using the job matcher service
+      // This will automatically use fallback if model is not available
+      recommendations = await jobMatcherService.generateRecommendations(
+        userProfile, 
+        allJobs, 
+        limit
+      );
+      
+      modelStatus = await jobMatcherService.getModelStatus();
+    } catch (error) {
+      console.log('Job matcher model not available:', error.message);
+      // Use basic fallback recommendations
+      recommendations = allJobs.slice(0, limit).map((job, index) => ({
+        jobId: job.id,
+        jobTitle: job.jobTitle,
+        company: job.company,
+        city: job.city,
+        matchScore: Math.max(50, 100 - index * 5), // Basic scoring
+        reason: 'Based on available job listings',
+        job: job
+      }));
+    }
 
     console.log('Recommendations:', recommendations);
 
@@ -129,7 +152,7 @@ export async function GET(req) {
         experience: userProfile.experience,
         currentPosition: userProfile.currentPosition
       },
-      modelStatus: await jobMatcherService.getModelStatus()
+      modelStatus
     });
   } catch (error) {
     console.error('Error generating job recommendations:', error);

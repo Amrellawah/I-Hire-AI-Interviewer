@@ -17,6 +17,8 @@ import CallInterviewCard from '../dashboard/_components/CallInterviewCard';
 import Header from "../dashboard/_components/Header";
 import Image from 'next/image';
 import LatestJobsSection from './LatestJobsSection';
+import JobRecommendations from './_components/JobRecommendations';
+import UserAvatar from '@/components/UserAvatar';
 
 export default function JobSeekerPage() {
   const { user, isLoaded } = useUser();
@@ -30,6 +32,7 @@ export default function JobSeekerPage() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const [userProfile, setUserProfile] = useState(null);
 
   // Use the same jobCategories as in the jobs page for consistency
   const jobCategories = [
@@ -75,6 +78,15 @@ export default function JobSeekerPage() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [menuOpen]);
+
+  useEffect(() => {
+    if (isLoaded && user) {
+      fetch(`/api/user-profile?userId=${user.id}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => setUserProfile(data))
+        .catch(() => setUserProfile(null));
+    }
+  }, [isLoaded, user]);
 
   const fetchInterviews = async () => {
     try {
@@ -192,10 +204,12 @@ export default function JobSeekerPage() {
                     className="w-10 h-10 rounded-full bg-gradient-to-br from-[#f1e9ea] to-[#e4d3d5] flex items-center justify-center overflow-hidden border-2 border-[#f1e9ea] hover:border-[#be3144] transition-colors shadow-sm cursor-pointer"
                     onClick={() => setMenuOpen((open) => !open)}
                   >
-                    <img
-                      src={user.imageUrl}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
+                    <UserAvatar 
+                      profilePhoto={userProfile?.profilePhoto} 
+                      userImageUrl={user.imageUrl} 
+                      name={userProfile?.name || user.fullName} 
+                      size={56} 
+                      className="border-2 border-[#f1e9ea]" 
                     />
                   </div>
                   {completedInterviews > 0 && (
@@ -210,9 +224,13 @@ export default function JobSeekerPage() {
                       style={{ minWidth: 280 }}
                     >
                       <div className="p-5 border-b border-[#f1e9ea] flex items-center gap-4 bg-[#f9f6f6]">
-                        <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-[#f1e9ea]">
-                          <img src={user.imageUrl} alt="Profile" className="w-full h-full object-cover" />
-                        </div>
+                        <UserAvatar 
+                          profilePhoto={userProfile?.profilePhoto} 
+                          userImageUrl={user.imageUrl} 
+                          name={userProfile?.name || user.fullName} 
+                          size={56} 
+                          className="border-2 border-[#f1e9ea]" 
+                        />
                         <div className="flex flex-col min-w-0">
                           <div className="font-bold text-[#191011] truncate">{user.fullName || 'User'}</div>
                           <div className="text-xs text-[#8e575f] truncate">{user.primaryEmailAddress?.emailAddress || 'email@example.com'}</div>
@@ -406,8 +424,65 @@ export default function JobSeekerPage() {
           </div>
         </section>
 
+        {/* Job Recommendations Section */}
+        <section className="mb-10">
+          <JobRecommendations />
+        </section>
+
         <LatestJobsSection allJobs={allJobs} />
       </main>
+      {/* Footer */}
+      <footer className="bg-gradient-to-br from-[#191011] via-[#23202b] to-[#2B2D42] text-white pt-14 pb-8 px-4 border-t-4 border-[#be3144] mt-12 shadow-inner">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:justify-between md:items-start gap-10 md:gap-8">
+          {/* Logo and brand */}
+          <div className="flex-1 flex flex-col items-center md:items-start mb-8 md:mb-0">
+            <div className="flex items-center gap-4 mb-4">
+              <Image src="/logo.png" width={56} height={56} alt="I-Hire Logo" className="drop-shadow-lg" />
+              <span className="text-3xl font-extrabold bg-gradient-to-r from-[#fff] to-[#f1e9ea] bg-clip-text text-transparent tracking-wide">I-Hire</span>
+            </div>
+            <p className="text-[#f1e9ea] text-base font-medium max-w-xs text-center md:text-left mb-2">Connecting talented professionals with top employers across the MENA region.</p>
+            <span className="inline-block bg-[#be3144] text-white text-xs font-semibold px-3 py-1 rounded-full mt-2 shadow">Empowering Your Career Journey</span>
+          </div>
+          {/* Links */}
+          <div className="flex-1 grid grid-cols-2 lg:grid-cols-3 gap-8 w-full">
+            <div>
+              <h4 className="font-bold text-lg mb-4 text-[#be3144]">For Job Seekers</h4>
+              <ul className="space-y-2 text-[#f1e9ea] text-sm">
+                <li><Link href="/job-seeker/jobs" className="hover:text-[#be3144] transition-colors">Browse Jobs</Link></li>
+                <li><Link href="/job-seeker/applications" className="hover:text-[#be3144] transition-colors">My Applications</Link></li>
+                <li><Link href="/job-seeker/profile" className="hover:text-[#be3144] transition-colors">Profile</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold text-lg mb-4 text-[#be3144]">Company</h4>
+              <ul className="space-y-2 text-[#f1e9ea] text-sm">
+                <li><Link href="/about" className="hover:text-[#be3144] transition-colors">About Us</Link></li>
+                <li><Link href="/contact" className="hover:text-[#be3144] transition-colors">Contact</Link></li>
+                <li><Link href="/privacy" className="hover:text-[#be3144] transition-colors">Privacy Policy</Link></li>
+              </ul>
+            </div>
+            <div className="col-span-2 lg:col-span-1 w-full flex flex-col items-center mt-8 lg:mt-0">
+              <h4 className="font-bold text-lg mb-4 text-[#be3144] text-center">Connect With Us</h4>
+              <div className="w-full flex justify-center items-center gap-4 mb-4">
+                <Link href="#" className="w-9 h-9 bg-[#be3144] rounded-full flex items-center justify-center hover:bg-[#f05941] transition-colors" aria-label="Twitter">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z" /></svg>
+                </Link>
+                <Link href="#" className="w-9 h-9 bg-[#be3144] rounded-full flex items-center justify-center hover:bg-[#f05941] transition-colors" aria-label="Instagram">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" />
+                    <circle cx="12" cy="12" r="5" stroke="currentColor" />
+                    <circle cx="17" cy="7" r="1.5" fill="currentColor" />
+                  </svg>
+                </Link>
+                <Link href="#" className="w-9 h-9 bg-[#be3144] rounded-full flex items-center justify-center hover:bg-[#f05941] transition-colors" aria-label="LinkedIn">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                </Link>
+              </div>
+              <p className="text-[#f1e9ea] text-xs text-center">© {new Date().getFullYear()} <span className="font-bold text-[#be3144]">I-Hire</span>. All rights reserved.</p>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -9,6 +9,8 @@ import { Loader2, ArrowLeft, ChevronRight, Search, Filter, X, User, Pencil, Book
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { useUser } from '@clerk/nextjs';
+import UserAvatar from '@/components/UserAvatar';
+import JobRecommendations from '../_components/JobRecommendations';
 
 // Job categories (full list for filter)
 const jobCategories = [
@@ -149,6 +151,8 @@ function JobsPageContent() {
   const [completedInterviews, setCompletedInterviews] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const [userProfile, setUserProfile] = useState(null);
+  const [showRecommendations, setShowRecommendations] = useState(false);
 
   // Theme colors
   const themePrimary = '#be3144';
@@ -164,6 +168,15 @@ function JobsPageContent() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (isLoaded && user) {
+      fetch(`/api/user-profile?userId=${user.id}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => setUserProfile(data))
+        .catch(() => setUserProfile(null));
+    }
+  }, [isLoaded, user]);
 
   const fetchAllJobs = async () => {
     try {
@@ -279,11 +292,7 @@ function JobsPageContent() {
                     className="w-10 h-10 rounded-full bg-gradient-to-br from-[#f1e9ea] to-[#e4d3d5] flex items-center justify-center overflow-hidden border-2 border-[#f1e9ea] hover:border-[#be3144] transition-colors shadow-sm cursor-pointer"
                     onClick={() => setMenuOpen((open) => !open)}
                   >
-                    <img
-                      src={user.imageUrl}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
+                    <UserAvatar profilePhoto={userProfile?.profilePhoto} userImageUrl={user.imageUrl} name={userProfile?.name || user.fullName} size={40} />
                   </div>
                   {completedInterviews > 0 && (
                     <span className="absolute -top-1 -right-1 bg-[#be3144] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
@@ -298,7 +307,7 @@ function JobsPageContent() {
                     >
                       <div className="p-5 border-b border-[#f1e9ea] flex items-center gap-4 bg-[#f9f6f6]">
                         <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-[#f1e9ea]">
-                          <img src={user.imageUrl} alt="Profile" className="w-full h-full object-cover" />
+                          <UserAvatar profilePhoto={userProfile?.profilePhoto} userImageUrl={user.imageUrl} name={userProfile?.name || user.fullName} size={40} />
                         </div>
                         <div className="flex flex-col min-w-0">
                           <div className="font-bold text-[#191011] truncate">{user.fullName || 'User'}</div>
@@ -507,136 +516,93 @@ function JobsPageContent() {
               <h2 className="text-2xl font-bold text-[#191011]">
                 {filteredJobs.length} {filteredJobs.length === 1 ? 'Job' : 'Jobs'} Found
               </h2>
-              
-              {(selectedCategory !== 'All Categories' || selectedType !== 'all' || searchQuery) && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  {selectedCategory !== 'All Categories' && (
-                    <span className="inline-flex items-center bg-[#f1e9ea] text-[#be3144] text-xs font-medium px-2.5 py-0.5 rounded-full border border-[#e4d3d5]">
-                      {selectedCategory}
-                      <button 
-                        onClick={() => setSelectedCategory('All Categories')}
-                        className="ml-1 text-[#be3144] hover:text-[#8e575f]"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {selectedType !== 'all' && (
-                    <span className="inline-flex items-center bg-[#f1e9ea] text-[#be3144] text-xs font-medium px-2.5 py-0.5 rounded-full border border-[#e4d3d5]">
-                      {interviewTypes.find(t => t.value === selectedType)?.label}
-                      <button 
-                        onClick={() => setSelectedType('all')}
-                        className="ml-1 text-[#be3144] hover:text-[#8e575f]"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {searchQuery && (
-                    <span className="inline-flex items-center bg-[#f1e9ea] text-[#be3144] text-xs font-medium px-2.5 py-0.5 rounded-full border border-[#e4d3d5]">
-                      Search: "{searchQuery}"
-                      <button 
-                        onClick={() => setSearchQuery("")}
-                        className="ml-1 text-[#be3144] hover:text-[#8e575f]"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                </div>
-              )}
+              <Button
+                variant={showRecommendations ? 'default' : 'outline'}
+                className={showRecommendations ? 'bg-gradient-to-r from-[#be3144] to-[#f05941] text-white' : 'border-[#be3144] text-[#be3144] hover:bg-[#be3144]/10'}
+                onClick={() => setShowRecommendations(v => !v)}
+              >
+                {showRecommendations ? 'Show All Jobs' : 'Show AI Recommendations'}
+              </Button>
             </div>
             
-            {loadingJobs ? (
-              <div className="flex justify-center items-center h-40">
-                <Loader2 className="w-8 h-8 animate-spin text-[#be3144]" />
-                <span className="ml-2 text-[#8e575f]">Loading jobs...</span>
-          </div>
-        ) : filteredJobs.length > 0 ? (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {paginatedJobs.map((job) => (
-              <JobSeekerJobCard job={job} key={job._type === 'call' ? job.job_id : job.mockId} />
-            ))}
-          </div>
-                {/* Pagination controls */}
-                <div className="flex flex-col items-center justify-center mt-8">
-                  <div className="flex items-center gap-2 text-base mb-2" style={{ color: themeSecondaryText }}>
-                    {totalJobs > 0 && (
-                      <span>
-                        Showing {startIdx + 1} - {endIdx} of {totalJobs}
-                      </span>
-                    )}
+            {showRecommendations ? (
+              <JobRecommendations />
+            ) : (
+              loadingJobs ? (
+                <div className="flex justify-center items-center h-40">
+                  <Loader2 className="w-8 h-8 animate-spin text-[#be3144]" />
+                  <span className="ml-2 text-[#8e575f]">Loading jobs...</span>
+                </div>
+              ) : filteredJobs.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {paginatedJobs.map((job) => (
+                      <JobSeekerJobCard job={job} key={job._type === 'call' ? job.job_id : job.mockId} />
+                    ))}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setCurrentPage(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      style={{
-                        background: currentPage === 1 ? themeBg : '#fff',
-                        color: currentPage === 1 ? '#c8bfc2' : themeText,
-                        border: `1px solid ${themeBg}`,
-                        cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                        transition: 'background 0.2s, color 0.2s',
-                        borderRadius: '0.375rem',
-                        padding: '0.5rem 0.75rem',
-                      }}
-                    >
-                      &#60;
-                    </button>
-                    {pageNumbers.map((num) => (
+                  {/* Pagination controls */}
+                  <div className="flex flex-col items-center justify-center mt-8">
+                    <div className="flex items-center gap-2 text-base mb-2" style={{ color: themeSecondaryText }}>
+                      {totalJobs > 0 && (
+                        <span>
+                          Showing {startIdx + 1} - {endIdx} of {totalJobs}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
                       <button
-                        key={num}
-                        onClick={() => setCurrentPage(num)}
+                        onClick={() => setCurrentPage(currentPage - 1)}
+                        disabled={currentPage === 1}
                         style={{
-                          background: num === currentPage ? themePrimary : themeBg,
-                          color: num === currentPage ? '#fff' : themeText,
+                          background: currentPage === 1 ? themeBg : '#fff',
+                          color: currentPage === 1 ? '#c8bfc2' : themeText,
                           border: `1px solid ${themeBg}`,
+                          cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
                           transition: 'background 0.2s, color 0.2s',
                           borderRadius: '0.375rem',
                           padding: '0.5rem 0.75rem',
-                          fontWeight: num === currentPage ? 700 : 500,
                         }}
                       >
-                        {num}
+                        &#60;
                       </button>
-                    ))}
-                    <button
-                      onClick={() => setCurrentPage(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      style={{
-                        background: currentPage === totalPages ? themeBg : '#fff',
-                        color: currentPage === totalPages ? '#c8bfc2' : themeText,
-                        border: `1px solid ${themeBg}`,
-                        cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                        transition: 'background 0.2s, color 0.2s',
-                        borderRadius: '0.375rem',
-                        padding: '0.5rem 0.75rem',
-                      }}
-                    >
-                      &#62;
-                    </button>
+                      {pageNumbers.map((num) => (
+                        <button
+                          key={num}
+                          onClick={() => setCurrentPage(num)}
+                          style={{
+                            background: num === currentPage ? themePrimary : themeBg,
+                            color: num === currentPage ? '#fff' : themeText,
+                            border: `1px solid ${themeBg}`,
+                            transition: 'background 0.2s, color 0.2s',
+                            borderRadius: '0.375rem',
+                            padding: '0.5rem 0.75rem',
+                            fontWeight: num === currentPage ? 700 : 500,
+                          }}
+                        >
+                          {num}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => setCurrentPage(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        style={{
+                          background: currentPage === totalPages ? themeBg : '#fff',
+                          color: currentPage === totalPages ? '#c8bfc2' : themeText,
+                          border: `1px solid ${themeBg}`,
+                          cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                          transition: 'background 0.2s, color 0.2s',
+                          borderRadius: '0.375rem',
+                          padding: '0.5rem 0.75rem',
+                        }}
+                      >
+                        &#62;
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </>
-            ) : (
-              <div className="bg-white border-2 border-dashed border-[#e4d3d5] rounded-xl p-12 text-center">
-                <div className="mx-auto w-24 h-24 bg-[#f1e9ea] rounded-full flex items-center justify-center mb-6">
-                  <Search className="w-10 h-10 text-[#be3144]" />
-              </div>
-                <h3 className="text-xl font-medium text-[#191011] mb-2">
-                  No jobs found matching your criteria
-              </h3>
-                <p className="text-[#8e575f] mb-6 max-w-md mx-auto">
-                  Try adjusting your filters or search query to find more opportunities.
-              </p>
-              <Button
-                  onClick={clearFilters}
-                  className="bg-gradient-to-r from-[#be3144] to-[#f05941] hover:from-[#f05941] hover:to-[#be3144] text-white"
-                >
-                  Clear all filters
-              </Button>
-            </div>
+                </>
+              ) : (
+                <div className="text-center text-[#8e575f] py-12 text-lg">No jobs found matching your criteria.</div>
+              )
             )}
           </div>
         </div>
@@ -655,7 +621,7 @@ function JobsPageContent() {
             <span className="inline-block bg-[#be3144] text-white text-xs font-semibold px-3 py-1 rounded-full mt-2 shadow">Empowering Your Career Journey</span>
           </div>
           {/* Links */}
-          <div className="flex-1 grid grid-cols-2 gap-8 md:gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="flex-1 grid grid-cols-2 lg:grid-cols-3 gap-8 w-full">
             <div>
               <h4 className="font-bold text-lg mb-4 text-[#be3144]">For Job Seekers</h4>
               <ul className="space-y-2 text-[#f1e9ea] text-sm">
@@ -672,22 +638,24 @@ function JobsPageContent() {
                 <li><Link href="/privacy" className="hover:text-[#be3144] transition-colors">Privacy Policy</Link></li>
               </ul>
             </div>
-            <div className="col-span-2 md:col-span-1">
-              <h4 className="font-bold text-lg mb-4 text-[#be3144]">Connect With Us</h4>
-              <div className="flex gap-4 mb-4 justify-center md:justify-start">
+            <div className="col-span-2 lg:col-span-1 w-full flex flex-col items-center mt-8 lg:mt-0">
+              <h4 className="font-bold text-lg mb-4 text-[#be3144] text-center">Connect With Us</h4>
+              <div className="w-full flex justify-center items-center gap-4 mb-4">
                 <Link href="#" className="w-9 h-9 bg-[#be3144] rounded-full flex items-center justify-center hover:bg-[#f05941] transition-colors" aria-label="Twitter">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z" /></svg>
                 </Link>
                 <Link href="#" className="w-9 h-9 bg-[#be3144] rounded-full flex items-center justify-center hover:bg-[#f05941] transition-colors" aria-label="Instagram">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" /></svg>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" />
+                    <circle cx="12" cy="12" r="5" stroke="currentColor" />
+                    <circle cx="17" cy="7" r="1.5" fill="currentColor" />
+                  </svg>
                 </Link>
                 <Link href="#" className="w-9 h-9 bg-[#be3144] rounded-full flex items-center justify-center hover:bg-[#f05941] transition-colors" aria-label="LinkedIn">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" /></svg>
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
                 </Link>
               </div>
-              <p className="text-[#f1e9ea] text-xs text-center md:text-left">
-                © {new Date().getFullYear()} <span className="font-bold text-[#be3144]">I-Hire</span>. All rights reserved.
-              </p>
+              <p className="text-[#f1e9ea] text-xs text-center">© {new Date().getFullYear()} <span className="font-bold text-[#be3144]">I-Hire</span>. All rights reserved.</p>
             </div>
           </div>
         </div>
