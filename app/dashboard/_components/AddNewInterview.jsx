@@ -293,7 +293,7 @@ export default function AddNewInterview({ open, setOpen, jobDetails, jobDetailsI
       if (resp.length > 0) {
         resetForm();
         setOpen(false);
-        router.push(`/dashboard/interview/${resp[0]?.mockId}`);
+        router.push(`/interview/${resp[0]?.mockId}`);
       }
     } catch (error) {
       console.error("Error generating questions:", error);

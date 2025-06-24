@@ -40,9 +40,14 @@ function CallInterviewCard({ interview, viewDetail=false }) {
             <Clock className='h-4 w-4 text-[#be3144]' />
             {interview?.duration || 'N/A'}
           </span>
-          <span className='text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full'>
-            {interview.feedback?.length || 0} Candidates
-          </span>
+          <div className='flex flex-col gap-1'>
+            <span className='text-xs font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full'>
+              Call Interview
+            </span>
+            <span className='text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full'>
+              {interview.feedback?.length || 0} Candidates
+            </span>
+          </div>
         </div>
       </div>
       {/* Actions */}
