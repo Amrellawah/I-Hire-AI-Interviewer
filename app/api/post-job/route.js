@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/utils/db';
-import { JobPost } from '@/utils/schema';
+import { JobPost } from '@/app/utils/schema';
 
 export async function POST(req) {
   try {

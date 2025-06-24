@@ -1,21 +1,32 @@
 "use client"
 import { useUser } from '@clerk/nextjs';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Lightbulb, ChevronRight, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import CVUploadComponent from './_components/CVUploadComponent';
+import UserAvatar from '@/components/UserAvatar';
 
 export default function CVUploadPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const [userProfile, setUserProfile] = useState(null);
   
   useEffect(() => {
     if (isLoaded && !user) {
       router.push('/sign-in');
     }
   }, [isLoaded, user, router]);
+  
+  useEffect(() => {
+    if (isLoaded && user) {
+      fetch(`/api/user-profile?userId=${user.id}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => setUserProfile(data))
+        .catch(() => setUserProfile(null));
+    }
+  }, [isLoaded, user]);
   
   if (!isLoaded || !user) {
     return null;
@@ -44,13 +55,7 @@ export default function CVUploadPage() {
             </Button>
             {isLoaded && user && (
               <div className="relative">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#f1e9ea] to-[#e4d3d5] flex items-center justify-center overflow-hidden border-2 border-[#f1e9ea] hover:border-[#be3144] transition-colors shadow-sm">
-                  <img 
-                    src={user.imageUrl} 
-                    alt="Profile" 
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+                <UserAvatar profilePhoto={userProfile?.profilePhoto} userImageUrl={user.imageUrl} name={userProfile?.name || user.fullName} size={40} />
               </div>
             )}
           </div>
