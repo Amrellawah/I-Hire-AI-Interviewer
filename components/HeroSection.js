@@ -37,7 +37,7 @@ export default function HeroSection() {
               </h2>
             </div>
 
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-row gap-4 justify-center md:justify-start">
               <Link href="/job-seeker">
                 <button className="relative h-14 min-w-[160px] overflow-hidden rounded-xl bg-gradient-to-r from-[#be3144] to-[#f05941] px-6 text-base font-bold text-white shadow-lg transition-all duration-300 hover:from-[#f05941] hover:to-[#ff7b54] hover:shadow-xl md:h-16 md:min-w-[180px] md:text-lg">
                   <span className="relative z-10">I'm a Job Seeker</span>
