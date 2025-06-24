@@ -1,5 +1,5 @@
 "use client"
-import { useUser } from '@clerk/nextjs';
+import { useUser, useClerk } from '@clerk/nextjs';
 import { useEffect, useState, useRef } from 'react';
 import { db } from '@/utils/db';
 import { MockInterview, callInterview } from '@/utils/schema';
@@ -33,6 +33,7 @@ export default function JobSeekerPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const [userProfile, setUserProfile] = useState(null);
+  const { signOut } = useClerk();
 
   // Use the same jobCategories as in the jobs page for consistency
   const jobCategories = [
@@ -271,7 +272,7 @@ export default function JobSeekerPage() {
                         <a href="#" className="flex items-center gap-4 px-6 py-4 hover:bg-[#f1e9ea] transition-colors text-[#191011] text-base font-medium">
                           <Settings className="w-5 h-5 text-[#191011]" /> Account Settings
                         </a>
-                        <a href="#" className="flex items-center gap-4 px-6 py-4 hover:bg-[#f9eaea] transition-colors text-[#be3144] text-base font-semibold">
+                        <a href="#" onClick={e => { e.preventDefault(); signOut(); }} className="flex items-center gap-4 px-6 py-4 hover:bg-[#f9eaea] transition-colors text-[#be3144] text-base font-semibold">
                           <LogOut className="w-5 h-5 text-[#be3144]" /> Logout
                         </a>
                       </div>

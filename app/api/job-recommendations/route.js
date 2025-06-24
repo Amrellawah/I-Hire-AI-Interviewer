@@ -106,27 +106,10 @@ export async function GET(req) {
 
     console.log('Recommendations:', recommendations);
 
-    // Save recommendations to database
-    for (const recommendation of recommendations) {
-      // Use the integer jobDetailsId from the nested job object
-      const jobDetailsId = recommendation.job?.jobDetailsId;
-      if (!jobDetailsId || isNaN(Number(jobDetailsId))) {
-        console.warn('Skipping recommendation with missing or invalid jobDetailsId:', recommendation);
-        continue;
-      }
-      try {
-        await db.insert(JobRecommendation).values({
-          userId,
-          jobDetailsId, // integer, not UUID
-          matchScore: recommendation.matchScore,
-          recommendationReason: recommendation.reason,
-          isViewed: false,
-          isApplied: false
-        }).onConflictDoNothing(); // Avoid duplicates
-      } catch (insertError) {
-        console.error('Failed to insert recommendation:', insertError, recommendation);
-      }
-    }
+    // Save recommendations to database - but skip if jobDetailsId is missing
+    // Since we're using callInterview and MockInterview tables, we don't have jobDetailsId
+    // We'll just return the recommendations without saving to JobRecommendation table
+    console.log('Skipping database save for recommendations (using call/mock interviews)');
 
     // Attach _type and ids to each recommendation (copy from job object to top level)
     const recommendationsWithJobFields = recommendations.map(rec => {

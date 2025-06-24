@@ -21,6 +21,7 @@ export default function JobRecommendations() {
   const [rawRecommendations, setRawRecommendations] = useState([]);
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -49,14 +50,19 @@ export default function JobRecommendations() {
       const response = await fetch(`/api/job-recommendations?userId=${user.id}&limit=50`);
       const data = await response.json();
       if (!response.ok) {
+        if (response.status === 404) {
+          setUserProfile(data.userProfile || {});
+          setRawRecommendations([]);
+          setEnhancedRecommendations([]);
+          setLoading(false);
+          return;
+        }
         throw new Error('Failed to fetch job data for enhancement');
       }
       setRawRecommendations(data.recommendations);
-      // Map jobs to match the jobs card structure
+      setUserProfile(data.userProfile);
       const mapped = data.recommendations.map(job => {
-        // If already has _type, use as is
         if (job._type === 'call' || job._type === 'mock') return job;
-        // Try to infer type and map fields
         if (job.job_id) {
           return {
             ...job,
@@ -72,18 +78,18 @@ export default function JobRecommendations() {
             jobDescription: job.jobDescription || job.jobDesc || job.jobDescription,
           };
         }
-        // fallback: skip jobs without type
         return null;
       }).filter(Boolean);
       setEnhancedRecommendations(mapped);
-      // Debug log
       if (typeof window !== 'undefined') {
         console.log('Raw recommendations from API:', data.recommendations);
         console.log('Mapped recommendations:', mapped);
       }
     } catch (error) {
-      console.error('Error generating enhanced recommendations:', error);
-      setError('Failed to generate enhanced recommendations');
+      if (!error.message.includes('404')) {
+        console.error('Error generating enhanced recommendations:', error);
+        setError('Failed to generate enhanced recommendations');
+      }
     } finally {
       setLoading(false);
     }
@@ -145,7 +151,6 @@ export default function JobRecommendations() {
   const filteredRecommendations = enhancedRecommendations.filter(job => !hiddenJobIds.includes(job._type === 'call' ? job.job_id : job.mockId));
 
   if (filteredRecommendations.length === 0) {
-    // If there are raw recommendations but none have _type, show a debug warning
     if (rawRecommendations.length > 0) {
       return (
         <div className="text-center p-8">
@@ -162,6 +167,30 @@ export default function JobRecommendations() {
         <h3 className="text-lg font-medium text-[#191011] mb-2">No Job Recommendations Yet</h3>
         <p className="text-[#8e575f] mb-4">
           Upload your CV to get personalized job recommendations powered by our fine-tuned AI model.
+        </p>
+        <Button 
+          onClick={() => window.location.href = '/job-seeker/Upload-CV'}
+          className="bg-gradient-to-r from-[#be3144] to-[#f05941] hover:from-[#f05941] hover:to-[#ff7b54]"
+        >
+          Upload CV
+        </Button>
+      </div>
+    );
+  }
+
+  const isProfileEmpty = userProfile &&
+    !userProfile.skills?.length &&
+    !userProfile.experience?.length &&
+    !userProfile.currentPosition;
+
+  if (isProfileEmpty) {
+    return (
+      <div className="text-center p-8">
+        <h3 className="text-lg font-medium text-[#191011] mb-2">
+          Your profile is empty
+        </h3>
+        <p className="text-[#8e575f] mb-4">
+          Please upload your CV to get personalized job recommendations powered by our AI model.
         </p>
         <Button 
           onClick={() => window.location.href = '/job-seeker/Upload-CV'}
@@ -217,10 +246,8 @@ export default function JobRecommendations() {
           };
           return (
             <div key={key} className="relative group p-0 rounded-2xl overflow-hidden shadow-lg border border-[#f1e9ea] bg-white hover:shadow-xl hover:border-[#be3144]/50 transition-all duration-200 hover:scale-[1.01] flex flex-col h-full">
-              {/* Accent bar */}
               <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#be3144] to-[#f05941]" />
               <div className="flex items-center gap-4 px-6 pt-6 pb-2">
-                {/* Avatar */}
                 <div className="h-14 w-14 rounded-full bg-gradient-to-br from-[#be3144] to-[#f05941] flex items-center justify-center text-white font-bold text-2xl shadow-lg border-4 border-white group-hover:border-[#be3144] transition-all">
                   {job.jobPosition?.charAt(0) || 'J'}
                 </div>
