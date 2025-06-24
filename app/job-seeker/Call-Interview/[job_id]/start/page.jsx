@@ -23,10 +23,11 @@ function StartInterview() {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        // Initialize VAPI client
+        // Initialize VAPI client only once
         vapiRef.current = new Vapi(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY);
 
         const handleMessage = (message) => {
+            console.log('[Vapi] Message event:', message); // Debug log
             if (message?.conversation) {
                 const convoString = JSON.stringify(message.conversation);
                 setConversation(convoString);
@@ -45,10 +46,23 @@ function StartInterview() {
             setActiveUser(true);
         };
 
-        const callEndHandler = () => {
-            toast('Interview Ended');
+        const callEndHandler = (event) => {
+            console.log('[Vapi] Call ended:', event);
             setCallEnd(true);
-            GenerateFeedback();
+            // Only generate feedback if conversation is available
+            if (conversation) {
+                GenerateFeedback();
+            } else {
+                toast.error('Interview ended but no conversation data was captured. Feedback cannot be generated.');
+            }
+        };
+
+        const errorHandler = (error) => {
+            console.error('[Vapi] Error event:', error);
+            if (error?.errorMsg?.includes('Meeting has ended')) {
+                toast.error('The interview session was ended unexpectedly.');
+                setCallEnd(true);
+            }
         };
 
         vapiRef.current.on("message", handleMessage);
@@ -56,6 +70,7 @@ function StartInterview() {
         vapiRef.current.on("speech-start", speechStartHandler);
         vapiRef.current.on("speech-end", speechEndHandler);
         vapiRef.current.on("call-end", callEndHandler);
+        vapiRef.current.on("error", errorHandler);
 
         return () => {
             // Clean up event listeners
@@ -65,14 +80,12 @@ function StartInterview() {
                 vapiRef.current.off("speech-start", speechStartHandler);
                 vapiRef.current.off("speech-end", speechEndHandler);
                 vapiRef.current.off("call-end", callEndHandler);
-                
-                // Stop the call if component unmounts
-                if (!callEnd) {
-                    vapiRef.current.stop();
-                }
+                vapiRef.current.off("error", errorHandler);
+                vapiRef.current.stop();
+                vapiRef.current = null; // Nullify to prevent duplicate instances
             }
         };
-    }, [callEnd]);
+    }, []); // Only run on mount/unmount
 
     useEffect(() => {
         if (interviewInfo && vapiRef.current) {
@@ -85,11 +98,14 @@ function StartInterview() {
             toast.error('Interview information is not available');
             return;
         }
-
+        // Guard: Don't start if already in a call (optional, based on Vapi API)
+        if (vapiRef.current.isStarted && typeof vapiRef.current.isStarted === 'function' && vapiRef.current.isStarted()) {
+            console.warn('Vapi call already started.');
+            return;
+        }
         const questionList = interviewInfo?.interviewData?.questionList
             ?.map((item) => item.question)
             ?.join(", ");
-
         const assistantOptions = {
             name: "AI Recruiter",
             firstMessage: `Hi ${interviewInfo?.userName}, how are you? Ready for your interview on ${interviewInfo?.interviewData?.jobPosition}`,
@@ -136,7 +152,6 @@ Key Guidelines:
                 ],
             },
         };
-
         vapiRef.current.start(assistantOptions);
     }
 
@@ -144,7 +159,20 @@ Key Guidelines:
         if (vapiRef.current) {
             await vapiRef.current.stop();
             setCallEnd(true);
-            GenerateFeedback();
+
+            // Wait up to 1 second for conversation data to arrive
+            let waited = 0;
+            const waitInterval = 100;
+            while (!conversation && waited < 1000) {
+                await new Promise(res => setTimeout(res, waitInterval));
+                waited += waitInterval;
+            }
+
+            if (conversation) {
+                GenerateFeedback();
+            } else {
+                toast.error('Interview ended but no conversation data was captured. Feedback cannot be generated.');
+            }
         }
     }
 
@@ -164,22 +192,17 @@ Key Guidelines:
     const GenerateFeedback = async () => {
         try {
             setLoading(true);
-            
             if (!interviewInfo) {
                 throw new Error("Interview information is not available");
             }
-
             if (!conversation) {
                 throw new Error("No conversation data available");
             }
-
             const result = await axios.post('/api/GenerateFeedbackForPhone', {
                 conversation: conversation
             });
-
             const Content = result.data.content;
             const FINAL_CONTENT = Content.replace('```json', '').replace('```', '');
-
             // Using Drizzle syntax for database insertion
             const feedbackData = {
                 userName: interviewInfo.userName,
@@ -188,15 +211,13 @@ Key Guidelines:
                 feedback: JSON.parse(FINAL_CONTENT),
                 recommended: false,
             };
-
             const insertedFeedback = await db.insert(callInterviewFeedback)
                 .values(feedbackData)
                 .returning();
-
             router.replace('/job-seeker/Call-Interview/' + job_id + "/completed");
         } catch (error) {
             console.error('Error saving feedback:', error);
-            toast.error('Failed to save feedback: ' + error.message);
+            toast.error('Failed to save feedback: ' + (error?.message || 'Unknown error'));
         } finally {
             setLoading(false);
         }
