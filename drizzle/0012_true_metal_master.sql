@@ -1,0 +1,1 @@
+ALTER TABLE "JobDetails" ADD COLUMN "company" varchar(255);
