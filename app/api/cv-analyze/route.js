@@ -1,13 +1,47 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { db } from '@/utils/db';
+import { CVAnalysis, UserProfile } from '@/utils/schema';
+import { eq } from 'drizzle-orm';
 
 const openai = new OpenAI({
   apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
 });
 
+export async function GET(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId');
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'userId is required' },
+        { status: 400 }
+      );
+    }
+
+    const cvAnalysis = await db.select().from(CVAnalysis).where(eq(CVAnalysis.userId, userId));
+
+    if (cvAnalysis.length === 0) {
+      return NextResponse.json(
+        { error: 'CV analysis not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(cvAnalysis[0]);
+  } catch (error) {
+    console.error('Error fetching CV analysis:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch CV analysis' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(req) {
   try {
-    const { cvText } = await req.json();
+    const { cvText, userId, originalFileName, extractedText } = await req.json();
 
     if (!cvText) {
       return NextResponse.json(
@@ -66,11 +100,78 @@ export async function POST(req) {
 
     const extractedData = JSON.parse(completion.choices[0].message.content);
 
-    return NextResponse.json(extractedData);
+    // Save CV analysis to database if userId is provided
+    let cvAnalysisId = null;
+    if (userId) {
+      try {
+        console.log('Attempting to save CV analysis for userId:', userId);
+        
+        const [cvAnalysis] = await db.insert(CVAnalysis).values({
+          userId,
+          originalFileName: originalFileName || null,
+          extractedText: extractedText || cvText,
+          parsedData: extractedData,
+          analysisStatus: 'completed'
+        }).returning({ id: CVAnalysis.id });
+
+        cvAnalysisId = cvAnalysis.id;
+        console.log('CV analysis saved with ID:', cvAnalysisId);
+
+        // Check if user profile exists, if not create one
+        const existingProfile = await db.select().from(UserProfile).where(UserProfile.userId.eq(userId));
+        console.log('Existing profile found:', existingProfile.length > 0);
+        
+        if (existingProfile.length === 0 && extractedData.email) {
+          // Create user profile from CV data
+          console.log('Creating new user profile');
+          await db.insert(UserProfile).values({
+            userId,
+            email: extractedData.email,
+            name: extractedData.name || null,
+            phone: extractedData.phone || null,
+            skills: extractedData.skills || [],
+            languages: extractedData.languages || [],
+            certifications: extractedData.certifications || [],
+            education: extractedData.education || null,
+            experience: extractedData.experience || null,
+            cvAnalysisId: cvAnalysisId,
+            isProfileComplete: false
+          });
+          console.log('User profile created successfully');
+        } else if (existingProfile.length > 0) {
+          // Update existing profile with new CV data
+          console.log('Updating existing user profile');
+          await db.update(UserProfile)
+            .set({
+              name: extractedData.name || existingProfile[0].name,
+              phone: extractedData.phone || existingProfile[0].phone,
+              skills: extractedData.skills || existingProfile[0].skills,
+              languages: extractedData.languages || existingProfile[0].languages,
+              certifications: extractedData.certifications || existingProfile[0].certifications,
+              education: extractedData.education || existingProfile[0].education,
+              experience: extractedData.experience || existingProfile[0].experience,
+              cvAnalysisId: cvAnalysisId,
+              updatedAt: new Date()
+            })
+            .where(UserProfile.userId.eq(userId));
+          console.log('User profile updated successfully');
+        }
+      } catch (dbError) {
+        console.error('Database error:', dbError);
+        // Continue without saving to database, but still return the parsed data
+        console.log('Continuing without database save due to error');
+      }
+    }
+
+    return NextResponse.json({
+      ...extractedData,
+      cvAnalysisId,
+      saved: !!userId && !!cvAnalysisId
+    });
   } catch (error) {
     console.error('Error analyzing CV:', error);
     return NextResponse.json(
-      { error: 'Failed to analyze CV' },
+      { error: 'Failed to analyze CV', details: error.message },
       { status: 500 }
     );
   }
