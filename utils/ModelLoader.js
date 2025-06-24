@@ -1,5 +1,16 @@
-// Remove the top-level import and make it conditional
-// import { pipeline, AutoTokenizer, AutoModel } from '@xenova/transformers';
+// Mock implementation for build time
+let transformers = null;
+
+// Try to import transformers, but provide a fallback if it fails
+try {
+  // This will only work in browser environment
+  if (typeof window !== 'undefined') {
+    // Dynamic import will be handled at runtime
+  }
+} catch (error) {
+  // This is expected during build time
+  console.log('Transformers not available during build time');
+}
 
 class JobMatcherModel {
   constructor() {
@@ -36,7 +47,12 @@ class JobMatcherModel {
       
       // Dynamically import transformers only on client side
       if (!this.transformers) {
-        this.transformers = await import('@xenova/transformers');
+        try {
+          this.transformers = await import('@xenova/transformers');
+        } catch (importError) {
+          console.log('Failed to import transformers:', importError.message);
+          throw new Error('Transformers library not available');
+        }
       }
       
       // Load the model from the local fine-tuned-job-matcher directory
