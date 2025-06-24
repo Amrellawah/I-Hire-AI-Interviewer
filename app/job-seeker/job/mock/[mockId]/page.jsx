@@ -116,7 +116,7 @@ export default function MockJobDetailsPage() {
           <Button
             className="w-full bg-gradient-to-r from-[#be3144] to-[#f05941] hover:from-[#f05941] hover:to-[#ff7b54] text-white text-lg mt-4"
             size="lg"
-            onClick={() => router.push(`/dashboard/interview/${job.mockId}`)}
+            onClick={() => router.push(`/interview/${job.mockId}`)}
           >
             Start Interview
           </Button>
