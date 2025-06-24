@@ -232,20 +232,20 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-4 space-y-6">
+    <div className="flex flex-col items-center justify-center p-6 bg-white rounded-2xl shadow-lg border max-w-2xl mx-auto">
       {/* Webcam Preview */}
-      <div className="relative mb-4 w-full max-w-2xl">
+      <div className={`relative mb-6 w-full aspect-video rounded-xl overflow-hidden border-4 transition-all ${isRecording ? 'border-[#be3144] shadow-lg' : 'border-gray-200'}`}>
         <Webcam
           ref={webcamRef}
           audio={false}
           mirrored={true}
           screenshotFormat="image/jpeg"
           videoConstraints={{ facingMode: 'user' }}
-          className="rounded-lg border-2 border-primary w-full h-auto"
+          className="w-full h-full object-cover rounded-xl"
           onUserMediaError={() => toast.error('Could not access camera')}
         />
         {isRecording && (
-          <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-md text-sm flex items-center">
+          <div className="absolute top-2 left-2 bg-red-500 text-white px-3 py-1 rounded-md text-sm flex items-center shadow-lg animate-pulse">
             <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
             REC {formatTime(recordingTime)}
             {isTranscribing && (
@@ -256,12 +256,13 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
       </div>
 
       {/* Language Selector */}
-      <div className="flex items-center gap-2">
-        <Languages className="h-4 w-4" />
+      <div className="flex items-center gap-3 mb-4">
+        <Languages className="h-5 w-5 text-primary" />
         <Button
           variant={languageMode === 'auto' ? "default" : "outline"}
           onClick={() => setLanguageMode('auto')}
           size="sm"
+          className="rounded-full px-4"
         >
           Auto Detect
         </Button>
@@ -269,6 +270,7 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
           variant={languageMode === 'en' ? "default" : "outline"}
           onClick={() => setLanguageMode('en')}
           size="sm"
+          className="rounded-full px-4"
         >
           English
         </Button>
@@ -276,6 +278,7 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
           variant={languageMode === 'ar' ? "default" : "outline"}
           onClick={() => setLanguageMode('ar')}
           size="sm"
+          className="rounded-full px-4"
         >
           العربية
         </Button>
@@ -283,7 +286,7 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
 
       {/* Follow-Up Section */}
       {followUpAnalysis?.needsFollowUp && (
-        <div className="w-full lg:w-3/4 p-4 border rounded-lg bg-gray-50">
+        <div className="w-full p-4 border rounded-lg bg-yellow-50 mb-4 animate-in fade-in">
           <h2 className="text-lg font-semibold mb-2 text-red-600">Follow-Up Needed</h2>
           <p className="text-sm mb-2"><strong>Reason:</strong> {followUpAnalysis.reason}</p>
           <p className="text-sm mb-4"><strong>Suggested Question:</strong> {followUpAnalysis.suggestedFollowUp}</p>
@@ -301,10 +304,10 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
       )}
 
       {/* Controls */}
-      <div className="flex flex-wrap gap-2 justify-center">
+      <div className="flex flex-wrap gap-4 justify-center mb-4">
         <Button
           variant={isRecording ? "destructive" : "outline"}
-          className="gap-2"
+          className="gap-2 px-6 py-3 text-base font-semibold rounded-full shadow-sm hover:scale-105 transition"
           onClick={handleStartStopRecording}
           disabled={loading || isTranscribing}
         >
@@ -316,7 +319,7 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
           ) : (
             <>
               <Mic className="h-5 w-5" />
-              <span>Start Recording</span>
+              <span>Record Answer</span>
             </>
           )}
           {isTranscribing && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -326,6 +329,7 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
           variant="outline"
           onClick={handleRetry}
           disabled={isRecording || (!userAnswer && !feedback)}
+          className="px-6 py-3 rounded-full"
         >
           <RefreshCw className="h-5 w-5 mr-2" />
           Retry
@@ -334,7 +338,7 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
         <Button
           onClick={handleSubmitAnswer}
           disabled={loading || !userAnswer.trim() || userAnswer.trim().length < MIN_ANSWER_LENGTH}
-          className="gap-2"
+          className="gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-[#be3144] to-[#f05941] text-white font-semibold shadow-md hover:scale-105 hover:shadow-lg transition"
         >
           {loading ? (
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -345,16 +349,32 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
         </Button>
       </div>
 
+      {/* Recording Progress Bar */}
+      {isRecording && (
+        <div className="w-full max-w-2xl mb-2">
+          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+            <span>Recording: {formatTime(recordingTime)}</span>
+            <span>Max: 2 min</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="h-2 rounded-full transition-all duration-300 bg-red-500"
+              style={{ width: `${Math.min(100, (recordingTime / 120) * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Answer Length */}
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-2xl mb-2">
         <div className="flex justify-between text-sm text-muted-foreground mb-1">
           <span>Answer length: {userAnswer.length} characters</span>
           <span>{MIN_ANSWER_LENGTH} minimum</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
-          <div 
-            className="h-2 rounded-full transition-all duration-300" 
-            style={{ 
+          <div
+            className="h-2 rounded-full transition-all duration-300"
+            style={{
               width: `${Math.min(100, (userAnswer.length / MIN_ANSWER_LENGTH) * 100)}%`,
               backgroundColor: userAnswer.length >= MIN_ANSWER_LENGTH ? '#10B981' : '#3B82F6'
             }}
@@ -363,18 +383,18 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
       </div>
 
       {/* Transcription Display */}
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-2xl mb-4">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-semibold">Your Answer:</h3>
           {detectedLanguage && (
             <span className="text-sm text-muted-foreground">
-              Detected: {detectedLanguage === 'en' ? 'English' : 
-                        detectedLanguage === 'ar' ? 'Arabic' : 'Mixed'}
+              Detected: {detectedLanguage === 'en' ? 'English' :
+                detectedLanguage === 'ar' ? 'Arabic' : 'Mixed'}
             </span>
           )}
         </div>
-        <div 
-          className={`bg-secondary p-4 rounded-lg min-h-32 border ${containsArabic(userAnswer) ? 'text-right' : 'text-left'}`}
+        <div
+          className={`bg-gray-50 p-5 rounded-xl min-h-32 border-2 ${containsArabic(userAnswer) ? 'text-right' : 'text-left'} font-medium text-lg tracking-wide`}
           dir={containsArabic(userAnswer) ? 'rtl' : 'ltr'}
         >
           {userAnswer ? (
@@ -389,9 +409,9 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
 
       {/* Audio Player */}
       {mediaBlobUrl && (
-        <div className="w-full max-w-2xl">
+        <div className="w-full max-w-2xl mb-4">
           <h3 className="text-lg font-semibold mb-2">Recording:</h3>
-          <audio src={mediaBlobUrl} controls className="w-full" />
+          <audio src={mediaBlobUrl} controls className="w-full rounded-lg" />
         </div>
       )}
 
