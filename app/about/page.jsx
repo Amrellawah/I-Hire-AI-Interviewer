@@ -149,7 +149,7 @@ export default function AboutPage() {
           >
             <div className="relative w-full max-w-4xl h-64 sm:h-80 md:h-96 rounded-3xl overflow-hidden shadow-lg">
               <Image
-                src="/uploads/Team.jpg"
+                src="/uploads/Team.JPG"
                 width={700}
                 height={400}
                 alt="Our Team Photo"
