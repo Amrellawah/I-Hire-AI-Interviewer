@@ -82,4 +82,12 @@ export const userAnswer = pgTable("userAnswer", {
 	needsFollowUp: boolean().default(false),
 	reason: text(),
 	suggestedFollowUp: varchar(),
+	interview_type: varchar(),
+	audioRecording: text(),
+	language: varchar(),
+	detailedEvaluation: json(),
+	evaluationScore: varchar(),
+	detailedScores: json(),
+	combinedScore: varchar(),
+	overallAssessment: text(),
 });

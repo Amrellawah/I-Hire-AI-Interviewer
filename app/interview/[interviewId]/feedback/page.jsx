@@ -2,7 +2,7 @@
 import { db } from '@/utils/db';
 import { UserAnswer, MockInterview } from '@/utils/schema';
 import { eq } from 'drizzle-orm';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, use } from 'react';
 import { ChevronsUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
@@ -15,6 +15,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 
 function Feedback({ params }) {
+  // Unwrap params Promise for Next.js 15 compatibility
+  const resolvedParams = use(params);
+  const interviewId = resolvedParams.interviewId;
+
   const [feedbackList, setFeedbackList] = useState([]);
   const [currentAnswers, setCurrentAnswers] = useState({});
   const [loadingStates, setLoadingStates] = useState({});
@@ -36,10 +40,10 @@ function Feedback({ params }) {
         const [interviewMeta, answers] = await Promise.all([
           db.select()
             .from(MockInterview)
-            .where(eq(MockInterview.mockId, params.interviewId)),
+            .where(eq(MockInterview.mockId, interviewId)),
           db.select()
             .from(UserAnswer)
-            .where(eq(UserAnswer.mockIdRef, params.interviewId))
+            .where(eq(UserAnswer.mockIdRef, interviewId))
             .orderBy(UserAnswer.createdAt)
         ]);
         
@@ -62,7 +66,7 @@ function Feedback({ params }) {
     };
     
     fetchData();
-  }, [params.interviewId]);
+  }, [interviewId]);
 
   const handleAnswerChange = (questionId, value) => {
     setCurrentAnswers(prev => ({
@@ -84,7 +88,7 @@ function Feedback({ params }) {
       await db.insert(UserAnswer)
         .values({
           id: questionId,
-          mockIdRef: params.interviewId,
+          mockIdRef: interviewId,
           question: questionText,
           userAns: answer,
           createdAt: new Date()
@@ -107,7 +111,7 @@ function Feedback({ params }) {
       // Refresh the question list
       const updatedAnswers = await db.select()
         .from(UserAnswer)
-        .where(eq(UserAnswer.mockIdRef, params.interviewId))
+        .where(eq(UserAnswer.mockIdRef, interviewId))
         .orderBy(UserAnswer.createdAt);
       
       setFeedbackList(updatedAnswers);
@@ -227,7 +231,7 @@ function Feedback({ params }) {
             </Button>
             {answeredCount === totalCount && totalCount > 0 && (
               <Button 
-                onClick={() => router.push(`/interview/${params.interviewId}/results`)}
+                onClick={() => router.push(`/interview/${interviewId}/results`)}
                 className="bg-green-600 hover:bg-green-700"
               >
                 View Final Results

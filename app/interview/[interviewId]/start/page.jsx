@@ -2,7 +2,7 @@
 import { db } from '@/utils/db';
 import { MockInterview } from '@/utils/schema';
 import { eq } from 'drizzle-orm';
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, use } from 'react'
 import QuestionsSection from './_components/QuestionsSection';
 import RecordAnswerSection from './_components/RecordAnswerSection';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,9 @@ import Image from 'next/image';
 import { UserButton } from '@clerk/nextjs';
 
 function StartInterview({params}) {
+    // Unwrap params Promise for Next.js 15 compatibility
+    const resolvedParams = use(params);
+    const interviewId = resolvedParams.interviewId;
 
     const [interviewData,setInterviewData]=useState();
     const [mockInterviewQuestion,setMockInterviewQuestion]=useState();
@@ -18,7 +21,7 @@ function StartInterview({params}) {
     
     useEffect(()=>{
         GetInterviewDetials();
-    },[]);
+    },[interviewId]);
 
      /**
          * Used to Get Interview Details by MockId/Interview Id
@@ -26,7 +29,7 @@ function StartInterview({params}) {
     
         const GetInterviewDetials = async()=>{
             const result=await db.select().from(MockInterview)
-            .where(eq(MockInterview.mockId,params.interviewId))
+            .where(eq(MockInterview.mockId,interviewId))
             
             const jsonMockResp=JSON.parse(result[0].jsonMockResp)
             setMockInterviewQuestion(jsonMockResp);

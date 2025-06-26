@@ -114,19 +114,33 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
     if (!userAnswer.trim()) return null;
     
     try {
-      const feedbackPrompt = `Analyze this interview response:
-        Question: ${mockInterviewQuestion[activeQuestionIndex]?.question}
-        Answer: ${userAnswer}
+      // Use the test evaluation API for now
+      const response = await fetch('/api/test-evaluation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          question: mockInterviewQuestion[activeQuestionIndex]?.question,
+          answer: userAnswer
+        })
+      });
 
-        Provide JSON response with:
-        - "rating": number (1-10)
-        - "feedback": string (constructive feedback)
-        - "suggestions": string[] (3 improvement suggestions)
-        - "transcriptionQuality": number (1-5, how accurate the transcription is)
-        - "language": string (detected language)`;
+      if (!response.ok) {
+        throw new Error('Evaluation API request failed');
+      }
 
-      const result = await chatSession(feedbackPrompt, interviewType);
-      return JSON.parse(result.replace(/```json|```/g, '').trim());
+      const evaluationResult = await response.json();
+      
+      // Format the result for compatibility with existing UI
+      return {
+        rating: evaluationResult.evaluation.rating,
+        feedback: evaluationResult.evaluation.feedback,
+        suggestions: evaluationResult.evaluation.suggestions,
+        transcriptionQuality: 5,
+        language: detectedLanguage || 'en',
+        overallAssessment: evaluationResult.evaluation.overallAssessment
+      };
     } catch (error) {
       console.error("Feedback generation failed", error);
       toast.error("Failed to generate feedback");

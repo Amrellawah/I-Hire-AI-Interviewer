@@ -28,7 +28,15 @@ export const UserAnswer = pgTable('userAnswer', {
   createdAt: varchar('createdAt'),
   needsFollowUp: boolean('needsFollowUp').default(false), 
   reason: text('reason'),
-  suggestedFollowUp: varchar('suggestedFollowUp')
+  suggestedFollowUp: varchar('suggestedFollowUp'),
+  interview_type: varchar('interview_type'),
+  audioRecording: text('audioRecording'),
+  language: varchar('language'),
+  detailedEvaluation: jsonb('detailedEvaluation'),
+  evaluationScore: varchar('evaluationScore'),
+  detailedScores: jsonb('detailedScores'),
+  combinedScore: varchar('combinedScore'),
+  overallAssessment: text('overallAssessment')
 });
 
 export const callInterview = pgTable('CallInterview', {
