@@ -1,11 +1,11 @@
 "use client";
 import { db } from '@/utils/db';
 import { UserAnswer, MockInterview } from '@/utils/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import React, { useEffect, useState, use } from 'react';
 import { ChevronsUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Collapsible,
   CollapsibleContent,
@@ -13,16 +13,20 @@ import {
 } from "@/components/ui/collapsible";
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { calculateSessionProgress } from '@/utils/sessionUtils';
 
 function Feedback({ params }) {
   // Unwrap params Promise for Next.js 15 compatibility
   const resolvedParams = use(params);
   const interviewId = resolvedParams.interviewId;
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get('sessionId');
 
   const [feedbackList, setFeedbackList] = useState([]);
   const [currentAnswers, setCurrentAnswers] = useState({});
   const [loadingStates, setLoadingStates] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionProgress, setSessionProgress] = useState(null);
   const router = useRouter();
   
   const [interviewData, setInterviewData] = useState({
@@ -37,15 +41,11 @@ function Feedback({ params }) {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [interviewMeta, answers] = await Promise.all([
-          db.select()
-            .from(MockInterview)
-            .where(eq(MockInterview.mockId, interviewId)),
-          db.select()
-            .from(UserAnswer)
-            .where(eq(UserAnswer.mockIdRef, interviewId))
-            .orderBy(UserAnswer.createdAt)
-        ]);
+        
+        // Get interview metadata
+        const interviewMeta = await db.select()
+          .from(MockInterview)
+          .where(eq(MockInterview.mockId, interviewId));
         
         if (interviewMeta[0]) {
           setInterviewData({
@@ -55,8 +55,33 @@ function Feedback({ params }) {
             jobExperience: interviewMeta[0].jobExperience
           });
         }
+
+        // Get answers based on session or all answers if no session specified
+        let answers;
+        if (sessionId) {
+          // Get answers for specific session
+          answers = await db.select().from(UserAnswer)
+            .where(and(
+              eq(UserAnswer.mockIdRef, interviewId),
+              eq(UserAnswer.sessionId, sessionId)
+            ))
+            .orderBy(UserAnswer.questionIndex);
+        } else {
+          // Get all answers for the interview (for backward compatibility)
+          answers = await db.select().from(UserAnswer)
+            .where(eq(UserAnswer.mockIdRef, interviewId))
+            .orderBy(UserAnswer.createdAt);
+        }
         
         setFeedbackList(answers);
+
+        // Calculate session progress if sessionId is provided
+        if (sessionId && interviewMeta[0]) {
+          const jsonMockResp = JSON.parse(interviewMeta[0].jsonMockResp);
+          const progress = calculateSessionProgress(answers, sessionId, jsonMockResp.length);
+          setSessionProgress(progress);
+        }
+        
       } catch (error) {
         console.error("Error fetching data:", error);
         toast.error('Failed to load interview data');
@@ -66,7 +91,7 @@ function Feedback({ params }) {
     };
     
     fetchData();
-  }, [interviewId]);
+  }, [interviewId, sessionId]);
 
   const handleAnswerChange = (questionId, value) => {
     setCurrentAnswers(prev => ({
@@ -109,10 +134,19 @@ function Feedback({ params }) {
       });
 
       // Refresh the question list
-      const updatedAnswers = await db.select()
-        .from(UserAnswer)
-        .where(eq(UserAnswer.mockIdRef, interviewId))
-        .orderBy(UserAnswer.createdAt);
+      let updatedAnswers;
+      if (sessionId) {
+        updatedAnswers = await db.select().from(UserAnswer)
+          .where(and(
+            eq(UserAnswer.mockIdRef, interviewId),
+            eq(UserAnswer.sessionId, sessionId)
+          ))
+          .orderBy(UserAnswer.questionIndex);
+      } else {
+        updatedAnswers = await db.select().from(UserAnswer)
+          .where(eq(UserAnswer.mockIdRef, interviewId))
+          .orderBy(UserAnswer.createdAt);
+      }
       
       setFeedbackList(updatedAnswers);
       toast.success('Answer saved successfully');
@@ -126,9 +160,10 @@ function Feedback({ params }) {
   };
 
   // Calculate progress
-  const answeredCount = feedbackList.filter(item => item.userAns).length;
+  const answeredCount = feedbackList.filter(item => item.userAns && item.isAnswered).length;
+  const skippedCount = feedbackList.filter(item => item.isSkipped).length;
   const totalCount = feedbackList.length;
-  const progressPercentage = totalCount > 0 ? Math.round((answeredCount / totalCount) * 100) : 0;
+  const progressPercentage = totalCount > 0 ? Math.round(((answeredCount + skippedCount) / totalCount) * 100) : 0;
 
   if (isLoading) {
     return (
@@ -151,10 +186,36 @@ function Feedback({ params }) {
         <>
           <div className="mb-8">
             <h2 className='text-3xl font-bold text-green-600'>Interview Feedback</h2>
+            
+            {/* Session Info */}
+            {sessionId && (
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h3 className="text-lg font-semibold text-blue-800 mb-2">Session Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-blue-700">Session ID:</span>
+                    <p className="text-blue-600">{sessionId.split('_').slice(-2).join('_')}</p>
+                  </div>
+                  {sessionProgress && (
+                    <>
+                      <div>
+                        <span className="font-medium text-blue-700">Answered:</span>
+                        <p className="text-blue-600">{sessionProgress.answered} questions</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-blue-700">Skipped:</span>
+                        <p className="text-blue-600">{sessionProgress.skipped} questions</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-between items-center mt-4">
               <h2 className='text-primary text-lg'>Complete your interview responses</h2>
               <span className="text-sm font-medium">
-                {answeredCount}/{totalCount} completed ({progressPercentage}%)
+                {answeredCount + skippedCount}/{totalCount} completed ({progressPercentage}%)
               </span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2.5 mt-3">
@@ -166,25 +227,62 @@ function Feedback({ params }) {
           </div>
           
           <div className="space-y-4">
-            {feedbackList.map((item) => (
-              <div key={item.id}>
-                <Collapsible defaultOpen={!item.userAns}>
-                  <CollapsibleTrigger className={`p-4 rounded-lg flex justify-between w-full text-left bg-secondary hover:bg-gray-100 transition-colors`}>
-                    <div className="flex items-center">
-                      <span className="font-medium">
-                        {item.question}
-                      </span>
-                    </div>
-                    <ChevronsUpDown className="h-5 w-5 text-gray-500" />
-                  </CollapsibleTrigger>
-                  
-                  <CollapsibleContent className="mt-2 pl-2">
-                    {item.userAns ? (
-                      <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-sm text-gray-700">Your Answer:</p>
-                          <p className="mt-1 text-gray-900">{item.userAns}</p>
+            {feedbackList.map((item, index) => (
+              <div key={item.id || index} className="border rounded-lg p-4">
+                <Collapsible>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" className="w-full justify-between p-0 h-auto">
+                      <div className="text-left">
+                        <h3 className="font-semibold text-lg">{item.question}</h3>
+                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                          {item.rating && (
+                            <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                              Rating: {item.rating}/10
+                            </span>
+                          )}
+                          {item.isSkipped && (
+                            <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                              ⏭ Skipped
+                            </span>
+                          )}
+                          {item.isAnswered && (
+                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                              ✓ Answered
+                            </span>
+                          )}
+                          {item.retryCount > 0 && (
+                            <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
+                              Retry #{item.retryCount}
+                            </span>
+                          )}
                         </div>
+                      </div>
+                      <ChevronsUpDown className="h-4 w-4" />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-4 space-y-4">
+                    {item.userAns ? (
+                      <div className="space-y-3">
+                        <div>
+                          <h4 className="font-medium mb-2">Your Answer:</h4>
+                          <p className="bg-gray-50 p-3 rounded border">{item.userAns}</p>
+                        </div>
+                        {item.feedback && (
+                          <div>
+                            <h4 className="font-medium mb-2">Feedback:</h4>
+                            <p className="bg-green-50 p-3 rounded border border-green-200">{item.feedback}</p>
+                          </div>
+                        )}
+                        {item.suggestions && (
+                          <div>
+                            <h4 className="font-medium mb-2">Suggestions:</h4>
+                            <ul className="bg-blue-50 p-3 rounded border border-blue-200 list-disc list-inside">
+                              {item.suggestions.split(', ').map((suggestion, i) => (
+                                <li key={i}>{suggestion}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -229,9 +327,9 @@ function Feedback({ params }) {
             >
               Save and Exit
             </Button>
-            {answeredCount === totalCount && totalCount > 0 && (
+            {answeredCount + skippedCount === totalCount && totalCount > 0 && (
               <Button 
-                onClick={() => router.push(`/interview/${interviewId}/results`)}
+                onClick={() => router.push(`/interview/${interviewId}/results${sessionId ? `?sessionId=${sessionId}` : ''}`)}
                 className="bg-green-600 hover:bg-green-700"
               >
                 View Final Results

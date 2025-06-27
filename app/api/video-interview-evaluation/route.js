@@ -44,7 +44,13 @@ const LABEL_WEIGHTS = {
   "Relevance to Question": 1.5,
   "Technical Accuracy": 1.5,
   "Clarity of Expression": 1.2,
-  "Answer Structure": 1.2
+  "Answer Structure": 1.2,
+  "Depth of Knowledge": 1.3,
+  "Practical Application": 1.4,
+  "Problem-Solving Approach": 1.3,
+  "Communication Skills": 1.1,
+  "Confidence Level": 1.0,
+  "Answer Completeness": 1.2
 };
 
 function get_evaluation_prompt(question, answer) {
@@ -82,6 +88,19 @@ Collaboration:['Sole Contribution', 'Minimal Collaboration', 'Moderate Collabora
 Impact:['No Impact', 'Negligible Impact', 'Low Impact', 'Moderate Impact', 'Strong Impact', 'High Impact', 'Transformational Impact']
 
 Answer Length:['Extremely Short', 'Very Short', 'Short', 'Medium', 'Detailed', 'Long', 'Very Long', 'Excessively Long']
+
+**IMPORTANT**: Analyze the response and provide these specific labels based on the content:
+
+1. **Relevance to Question** - How well the answer addresses the specific question asked
+2. **Technical Accuracy** - Correctness of technical concepts, facts, or methodologies mentioned
+3. **Clarity of Expression** - How clearly and understandably the candidate communicates their thoughts
+4. **Answer Structure** - Logical organization and flow of the response
+5. **Depth of Knowledge** - Level of expertise and understanding demonstrated
+6. **Practical Application** - How well the candidate can apply concepts to real-world scenarios
+7. **Problem-Solving Approach** - Methodology and reasoning used to address challenges
+8. **Communication Skills** - Effectiveness of verbal communication and articulation
+9. **Confidence Level** - Self-assurance and conviction in the response
+10. **Answer Completeness** - How thoroughly the question was addressed
 
 The interview question is:
 ${question}

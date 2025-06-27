@@ -1,4 +1,4 @@
-import { pgTable, text, integer, varchar, boolean, jsonb, timestamp, json } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, varchar, boolean, jsonb, timestamp, json, real } from "drizzle-orm/pg-core";
 import { relations } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 
@@ -33,10 +33,22 @@ export const UserAnswer = pgTable('userAnswer', {
   audioRecording: text('audioRecording'),
   language: varchar('language'),
   detailedEvaluation: jsonb('detailedEvaluation'),
-  evaluationScore: varchar('evaluationScore'),
+  evaluationScore: real('evaluationScore'),
   detailedScores: jsonb('detailedScores'),
   combinedScore: varchar('combinedScore'),
-  overallAssessment: text('overallAssessment')
+  overallAssessment: text('overallAssessment'),
+  sessionId: varchar('sessionId'),
+  questionIndex: integer('questionIndex'),
+  isAnswered: boolean('isAnswered').default(false),
+  isSkipped: boolean('isSkipped').default(false),
+  retryCount: integer('retryCount').default(0),
+  lastAttemptAt: timestamp('lastAttemptAt').defaultNow(),
+  updatedAt: timestamp('updatedAt').defaultNow(),
+  cheatingDetection: jsonb('cheatingDetection'),
+  cheatingRiskScore: integer('cheatingRiskScore').default(0),
+  cheatingAlertsCount: integer('cheatingAlertsCount').default(0),
+  cheatingDetectionEnabled: boolean('cheatingDetectionEnabled').default(false),
+  cheatingDetectionSettings: jsonb('cheatingDetectionSettings')
 });
 
 export const callInterview = pgTable('CallInterview', {

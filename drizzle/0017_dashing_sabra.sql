@@ -1,0 +1,1 @@
+ALTER TABLE "userAnswer" ALTER COLUMN "cheatingRiskScore" SET DATA TYPE integer;

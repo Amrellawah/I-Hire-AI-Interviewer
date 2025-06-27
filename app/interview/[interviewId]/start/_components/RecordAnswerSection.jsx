@@ -2,7 +2,7 @@
 import Webcam from 'react-webcam';
 import React, { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Mic, StopCircle, RefreshCw, Save, Loader2, Languages } from 'lucide-react';
+import { Mic, StopCircle, RefreshCw, Save, Loader2, Languages, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { chatSession } from '@/utils/OpenAIModel';
 import { db } from '@/utils/db';
@@ -11,8 +11,18 @@ import { useUser } from '@clerk/nextjs';
 import moment from 'moment';
 import { useReactMediaRecorder } from 'react-media-recorder';
 import { transcribeAudio } from '@/utils/OpenAIModel';
+import { eq, and } from 'drizzle-orm';
+import CheatingDetection from './CheatingDetection';
 
-function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, interviewData, interviewType = 'technical' }) {
+function RecordAnswerSection({ 
+  mockInterviewQuestion, 
+  activeQuestionIndex, 
+  interviewData, 
+  interviewType = 'technical',
+  sessionId,
+  onAnswerSubmitted,
+  currentAnswer
+}) {
   // State declarations
   const [userAnswer, setUserAnswer] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,10 +36,31 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [detectedLanguage, setDetectedLanguage] = useState(null);
   const [languageMode, setLanguageMode] = useState('auto'); // 'auto', 'en', or 'ar'
+  const [retryCount, setRetryCount] = useState(0);
+  const [cheatingAlerts, setCheatingAlerts] = useState([]);
+  const [cheatingRisk, setCheatingRisk] = useState(0);
+  const [showCheatingDetection, setShowCheatingDetection] = useState(true);
   
   const webcamRef = useRef(null);
   const { user } = useUser();
   const MIN_ANSWER_LENGTH = 10;
+
+  // Initialize with existing answer if available
+  useEffect(() => {
+    if (currentAnswer) {
+      setUserAnswer(currentAnswer.userAns || '');
+      setFeedback({
+        rating: currentAnswer.rating,
+        feedback: currentAnswer.feedback,
+        suggestions: currentAnswer.suggestions ? currentAnswer.suggestions.split(', ') : []
+      });
+      setRetryCount(currentAnswer.retryCount || 0);
+    } else {
+      setUserAnswer('');
+      setFeedback(null);
+      setRetryCount(0);
+    }
+  }, [currentAnswer, activeQuestionIndex]);
 
   // Audio recording setup
   const {
@@ -114,15 +145,16 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
     if (!userAnswer.trim()) return null;
     
     try {
-      // Use the test evaluation API for now
-      const response = await fetch('/api/test-evaluation', {
+      // Use the new video interview evaluation API
+      const response = await fetch('/api/video-interview-evaluation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           question: mockInterviewQuestion[activeQuestionIndex]?.question,
-          answer: userAnswer
+          answer: userAnswer,
+          interviewType: interviewType
         })
       });
 
@@ -134,12 +166,20 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
       
       // Format the result for compatibility with existing UI
       return {
-        rating: evaluationResult.evaluation.rating,
-        feedback: evaluationResult.evaluation.feedback,
-        suggestions: evaluationResult.evaluation.suggestions,
-        transcriptionQuality: 5,
+        rating: evaluationResult.traditional_feedback?.rating || evaluationResult.evaluation_score,
+        feedback: evaluationResult.traditional_feedback?.feedback || "Evaluation completed successfully",
+        suggestions: evaluationResult.traditional_feedback?.suggestions || ["Continue practicing", "Focus on clarity", "Provide more examples"],
+        transcriptionQuality: evaluationResult.traditional_feedback?.transcriptionQuality || 5,
         language: detectedLanguage || 'en',
-        overallAssessment: evaluationResult.evaluation.overallAssessment
+        overallAssessment: evaluationResult.traditional_feedback?.overallAssessment || "Good response with room for improvement",
+        // Add detailed evaluation data
+        detailedEvaluation: evaluationResult.labels || {},
+        evaluationScore: (function() {
+          const score = parseFloat(evaluationResult.evaluation_score);
+          return isNaN(score) ? 5.0 : score;
+        })(),
+        detailedScores: evaluationResult.detailed_scores || {},
+        combinedScore: evaluationResult.combined_score?.toString() || "5"
       };
     } catch (error) {
       console.error("Feedback generation failed", error);
@@ -175,6 +215,11 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
       return;
     }
 
+    if (!sessionId) {
+      toast.error('Session not initialized');
+      return;
+    }
+
     setLoading(true);
     setIsProcessing(true);
     
@@ -187,24 +232,82 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
       setFeedback(feedback);
       setFollowUpAnalysis(followUpAnalysis);
 
-      await db.insert(UserAnswer).values({
-        mockIdRef: interviewData?.mockId,
-        question: mockInterviewQuestion[activeQuestionIndex]?.question,
-        userAns: userAnswer,
-        feedback: feedback?.feedback || "",
-        rating: feedback?.rating || 0,
-        suggestions: feedback?.suggestions?.join(', ') || "",
-        userEmail: user?.primaryEmailAddress?.emailAddress,
-        createdAt: moment().format('DD-MM-YYYY'),
-        needsFollowUp: followUpAnalysis?.needsFollowUp || false,
-        reason: followUpAnalysis?.reason || "",
-        suggestedFollowUp: followUpAnalysis?.suggestedFollowUp || "",
-        interview_type: interviewType,
-        audioRecording: audioBlob ? await blobToBase64(audioBlob) : null,
-        language: detectedLanguage || 'mixed'
-      });
+      const newRetryCount = retryCount + 1;
+      setRetryCount(newRetryCount);
 
-      toast.success('Answer and feedback saved successfully');
+      // Check if answer already exists for this question and session
+      const existingAnswer = await db.select().from(UserAnswer)
+        .where(and(
+          eq(UserAnswer.mockIdRef, interviewData?.mockId),
+          eq(UserAnswer.sessionId, sessionId),
+          eq(UserAnswer.questionIndex, activeQuestionIndex)
+        ));
+
+      if (existingAnswer.length > 0) {
+        // Update existing answer
+        await db.update(UserAnswer)
+          .set({
+            userAns: userAnswer,
+            feedback: feedback?.feedback || "",
+            rating: feedback?.rating || 0,
+            suggestions: feedback?.suggestions?.join(', ') || "",
+            needsFollowUp: followUpAnalysis?.needsFollowUp || false,
+            reason: followUpAnalysis?.reason || "",
+            suggestedFollowUp: followUpAnalysis?.suggestedFollowUp || "",
+            audioRecording: audioBlob ? await blobToBase64(audioBlob) : null,
+            language: detectedLanguage || 'mixed',
+            isAnswered: true,
+            isSkipped: false,
+            retryCount: newRetryCount,
+            lastAttemptAt: new Date(),
+            updatedAt: new Date(),
+            // Add detailed evaluation data
+            detailedEvaluation: feedback?.detailedEvaluation || null,
+            evaluationScore: feedback?.evaluationScore || null,
+            detailedScores: feedback?.detailedScores || null,
+            combinedScore: feedback?.combinedScore || null,
+            overallAssessment: feedback?.overallAssessment || null
+          })
+          .where(eq(UserAnswer.id, existingAnswer[0].id));
+      } else {
+        // Insert new answer
+        await db.insert(UserAnswer).values({
+          mockIdRef: interviewData?.mockId,
+          question: mockInterviewQuestion[activeQuestionIndex]?.question,
+          questionIndex: activeQuestionIndex,
+          sessionId: sessionId,
+          userAns: userAnswer,
+          feedback: feedback?.feedback || "",
+          rating: feedback?.rating || 0,
+          suggestions: feedback?.suggestions?.join(', ') || "",
+          userEmail: user?.primaryEmailAddress?.emailAddress,
+          createdAt: moment().format('DD-MM-YYYY'),
+          needsFollowUp: followUpAnalysis?.needsFollowUp || false,
+          reason: followUpAnalysis?.reason || "",
+          suggestedFollowUp: followUpAnalysis?.suggestedFollowUp || "",
+          interview_type: interviewType,
+          audioRecording: audioBlob ? await blobToBase64(audioBlob) : null,
+          language: detectedLanguage || 'mixed',
+          isAnswered: true,
+          isSkipped: false,
+          retryCount: newRetryCount,
+          lastAttemptAt: new Date(),
+          updatedAt: new Date(),
+          // Add detailed evaluation data
+          detailedEvaluation: feedback?.detailedEvaluation || null,
+          evaluationScore: feedback?.evaluationScore || null,
+          detailedScores: feedback?.detailedScores || null,
+          combinedScore: feedback?.combinedScore || null,
+          overallAssessment: feedback?.overallAssessment || null
+        });
+      }
+
+      // Notify parent component to reload answers
+      if (onAnswerSubmitted) {
+        onAnswerSubmitted(sessionId);
+      }
+
+      toast.success(newRetryCount > 1 ? 'Answer updated successfully' : 'Answer and feedback saved successfully');
     } catch (error) {
       console.error("Submission failed", error);
       toast.error("Failed to save your answer");
@@ -245,18 +348,61 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
     return /[\u0600-\u06FF]/.test(text);
   };
 
+  // Cheating detection handlers
+  const handleCheatingDetected = (alert) => {
+    setCheatingAlerts(prev => [...prev, alert]);
+    toast.warning(`Cheating detected: ${alert.message}`, {
+      duration: 5000,
+      action: {
+        label: 'View Details',
+        onClick: () => setShowCheatingDetection(true)
+      }
+    });
+  };
+
+  const handleCheatingResolved = (alertId) => {
+    setCheatingAlerts(prev => prev.filter(alert => alert.id !== alertId));
+  };
+
+  const handleCheatingRiskUpdate = (risk) => {
+    setCheatingRisk(risk);
+  };
+
   return (
     <div className="flex flex-col items-center justify-center p-6 bg-white rounded-2xl shadow-lg border max-w-2xl mx-auto">
+      {/* Session Info */}
+      {sessionId && (
+        <div className="w-full mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-blue-700 font-medium">Session ID: {sessionId.split('_').slice(-2).join('_')}</span>
+            {retryCount > 0 && (
+              <span className="text-blue-600">Retry #{retryCount}</span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Webcam Preview */}
       <div className={`relative mb-6 w-full aspect-video rounded-xl overflow-hidden border-4 transition-all ${isRecording ? 'border-[#be3144] shadow-lg' : 'border-gray-200'}`}>
         <Webcam
           ref={webcamRef}
-          audio={false}
+          audio={true}
           mirrored={true}
           screenshotFormat="image/jpeg"
           videoConstraints={{ facingMode: 'user' }}
+          audioConstraints={{ 
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }}
           className="w-full h-full object-cover rounded-xl"
-          onUserMediaError={() => toast.error('Could not access camera')}
+          onUserMediaError={(error) => {
+            console.error('Webcam error:', error);
+            toast.error('Could not access camera or microphone');
+          }}
+          onUserMedia={() => {
+            console.log('Webcam and microphone access granted');
+          }}
         />
         {isRecording && (
           <div className="absolute top-2 left-2 bg-red-500 text-white px-3 py-1 rounded-md text-sm flex items-center shadow-lg animate-pulse">
@@ -265,6 +411,61 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
             {isTranscribing && (
               <Loader2 className="ml-2 h-4 w-4 animate-spin" />
             )}
+          </div>
+        )}
+      </div>
+
+      {/* Cheating Detection Section */}
+      <div className="w-full mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-blue-600" />
+            <h3 className="font-semibold text-sm">Cheating Detection</h3>
+            <span className="text-xs text-gray-500">
+              (Recording: {isRecording ? 'Yes' : 'No'}, Risk: {Math.round(cheatingRisk)}%)
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCheatingDetection(!showCheatingDetection)}
+            className="text-xs"
+          >
+            {showCheatingDetection ? 'Hide' : 'Show'} Details
+          </Button>
+        </div>
+        
+        {/* Always show basic detection status */}
+        <div className="p-3 bg-gray-50 rounded-lg mb-2">
+          <div className="flex items-center justify-between text-sm">
+            <span>Status: {isRecording ? 'Monitoring' : 'Waiting for recording'}</span>
+            <span>Alerts: {cheatingAlerts.length}</span>
+          </div>
+        </div>
+        
+        {showCheatingDetection && (
+          <CheatingDetection
+            webcamRef={webcamRef}
+            isRecording={isRecording}
+            onCheatingDetected={handleCheatingDetected}
+            onCheatingResolved={handleCheatingResolved}
+            interviewSettings={{
+              detectionInterval: 3000,
+              confidenceThreshold: 0.7,
+              maxViolations: 3,
+              alertCooldown: 15000
+            }}
+          />
+        )}
+        
+        {/* Quick Risk Indicator */}
+        {!showCheatingDetection && cheatingRisk > 0 && (
+          <div className={`p-2 rounded-lg text-xs font-medium ${
+            cheatingRisk < 30 ? 'bg-green-100 text-green-700' :
+            cheatingRisk < 70 ? 'bg-yellow-100 text-yellow-700' :
+            'bg-red-100 text-red-700'
+          }`}>
+            Risk Level: {Math.round(cheatingRisk)}% - {cheatingAlerts.length} alerts
           </div>
         )}
       </div>
@@ -346,7 +547,7 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
           className="px-6 py-3 rounded-full"
         >
           <RefreshCw className="h-5 w-5 mr-2" />
-          Retry
+          {retryCount > 0 ? 'Retry Again' : 'Retry'}
         </Button>
 
         <Button
@@ -359,7 +560,7 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
           ) : (
             <Save className="h-5 w-5" />
           )}
-          {loading ? 'Processing...' : 'Save Answer'}
+          {loading ? 'Processing...' : (retryCount > 0 ? 'Update Answer' : 'Save Answer')}
         </Button>
       </div>
 
@@ -450,17 +651,22 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
                 </span>
               )}
             </div>
-            <p className="mb-3">{feedback.feedback}</p>
-            {feedback.suggestions && (
+            <div className="space-y-2">
               <div>
-                <h4 className="font-medium mb-1">Suggestions:</h4>
-                <ul className="list-disc pl-5 space-y-1">
-                  {feedback.suggestions.map((suggestion, i) => (
-                    <li key={i}>{suggestion}</li>
-                  ))}
-                </ul>
+                <span className="font-medium">Feedback:</span>
+                <p className="text-sm mt-1">{feedback.feedback}</p>
               </div>
-            )}
+              {feedback.suggestions && feedback.suggestions.length > 0 && (
+                <div>
+                  <span className="font-medium">Suggestions:</span>
+                  <ul className="text-sm mt-1 list-disc list-inside">
+                    {feedback.suggestions.map((suggestion, index) => (
+                      <li key={index}>{suggestion}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

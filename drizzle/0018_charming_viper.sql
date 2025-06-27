@@ -1,0 +1,1 @@
+ALTER TABLE "userAnswer" ALTER COLUMN "evaluationScore" SET DATA TYPE real;

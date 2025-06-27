@@ -14,7 +14,11 @@ import {
   Clock,
   Award,
   Eye,
-  Sparkles
+  Sparkles,
+  Users,
+  RefreshCw,
+  SkipForward,
+  Play
 } from 'lucide-react';
 
 function VideoCandidateList({ candidateList }) {
@@ -56,78 +60,99 @@ function VideoCandidateList({ candidateList }) {
     return 'from-rose-500 to-red-600';
   };
 
+  const formatSessionId = (sessionId) => {
+    if (!sessionId) return 'Legacy Session';
+    const parts = sessionId.split('_');
+    return parts.slice(-2).join('_');
+  };
+
+  const getSessionType = (candidate) => {
+    if (candidate.sessionId) {
+      return 'New Session';
+    }
+    return 'Legacy Session';
+  };
+
   return (
     <div className='space-y-6'>
       {/* Enhanced Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-0">
         <div className="space-y-2">
-          <h2 className='text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent'>
-            Candidates ({candidateList?.length || 0})
-          </h2>
-          <p className="text-slate-600 text-lg">Review candidate performance and feedback</p>
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-2 h-6 rounded bg-gradient-to-b from-[#be3144] to-[#f05941]"></span>
+            <h2 className='text-2xl sm:text-3xl font-bold text-[#191011]'>
+              Interview Sessions ({candidateList?.length || 0})
+            </h2>
+          </div>
+          <p className="text-[#8e575f] text-base sm:text-lg">Review candidate performance and feedback by session</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-100 to-green-100 rounded-full border border-emerald-200">
+          <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-emerald-100 to-green-100 rounded-full border border-emerald-200">
             <Sparkles className="h-4 w-4 text-emerald-600" />
-            <span className="text-sm text-emerald-700 font-medium">Live Updates</span>
+            <span className="text-xs sm:text-sm text-emerald-700 font-medium">Live Updates</span>
           </div>
         </div>
       </div>
       
       {candidateList?.length > 0 ? (
-        <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+        <div className='grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6'>
           {candidateList.map((candidate, index) => {
-            const averageScore = calculateAverageScore(candidate);
+            const averageScore = candidate.averageRating || calculateAverageScore(candidate);
             const percentage = (averageScore / 10) * 100;
-            const completedQuestions = candidate.answers?.length || 0;
+            const completedQuestions = candidate.totalQuestions || candidate.answers?.length || 0;
+            const answeredQuestions = candidate.answeredQuestions || 0;
+            const skippedQuestions = candidate.skippedQuestions || 0;
+            const totalRetries = candidate.totalRetries || 0;
             
             return (
               <Card 
                 key={index} 
-                className='group hover:shadow-2xl transition-all duration-300 border-0 shadow-xl bg-gradient-to-br from-white to-slate-50 hover:from-slate-50 hover:to-blue-50'
+                className='group hover:shadow-2xl transition-all duration-300 border-0 shadow-xl bg-gradient-to-br from-white to-[#f1e9ea] hover:from-red-50 hover:to-pink-50'
               >
-                <CardContent className="p-6">
-                  <div className='flex items-start gap-5'>
+                <CardContent className="p-4 sm:p-6">
+                  <div className='flex items-start gap-3 sm:gap-5'>
                     {/* Enhanced Avatar */}
                     <div className='flex-shrink-0'>
-                      <div className={`h-16 w-16 bg-gradient-to-r ${getAvatarGradient(averageScore)} rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-xl group-hover:scale-110 transition-transform duration-300`}>
+                      <div className={`h-12 w-12 sm:h-16 sm:w-16 bg-gradient-to-r ${getAvatarGradient(averageScore)} rounded-xl sm:rounded-2xl flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-xl group-hover:scale-110 transition-transform duration-300`}>
                         {candidate.userName?.[0]?.toUpperCase() || 'A'}
                       </div>
                     </div>
                     
                     {/* Candidate Info */}
-                    <div className="flex-1 space-y-4">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                          <h3 className='font-bold text-slate-900 text-xl'>
+                    <div className="flex-1 space-y-3 sm:space-y-4 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-0">
+                        <div className="space-y-2 min-w-0">
+                          <h3 className='font-bold text-[#191011] text-lg sm:text-xl truncate'>
                             {candidate?.userName || 'Anonymous Candidate'}
                           </h3>
-                          <div className='flex items-center gap-4 text-sm text-slate-500'>
-                            <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full">
-                              <Calendar className="h-4 w-4 text-slate-600" />
-                              {moment(candidate?.createAt, 'DD-MM-YYYY').format('MMM DD, YYYY')}
+                          <div className='flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-[#8e575f]'>
+                            <div className="flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1 bg-[#f1e9ea] rounded-full">
+                              <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-[#8e575f]" />
+                              {moment(candidate?.lastAttemptAt || candidate?.createAt, 'DD-MM-YYYY').format('MMM DD, YYYY')}
                             </div>
-                            <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full">
-                              <MessageSquare className="h-4 w-4 text-slate-600" />
-                              {completedQuestions} Questions
+                            <div className="flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1 bg-blue-100 rounded-full">
+                              <Play className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
+                              {formatSessionId(candidate.sessionId)}
                             </div>
                           </div>
                         </div>
-                        {getPerformanceBadge(averageScore)}
+                        <div className="flex-shrink-0">
+                          {getPerformanceBadge(averageScore)}
+                        </div>
                       </div>
                       
                       {/* Enhanced Score Display */}
-                      <div className="space-y-3">
+                      <div className="space-y-2 sm:space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-semibold text-slate-700">Performance Score</span>
-                          <div className="flex items-center gap-3">
-                            <span className={`text-2xl font-bold ${getScoreColor(averageScore).split(' ')[0]}`}>
+                          <span className="text-xs sm:text-sm font-semibold text-[#8e575f]">Performance Score</span>
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <span className={`text-xl sm:text-2xl font-bold ${getScoreColor(averageScore).split(' ')[0]}`}>
                               {averageScore}/10
                             </span>
                             {getScoreIcon(averageScore)}
                           </div>
                         </div>
-                        <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden shadow-inner">
+                        <div className="w-full bg-[#f1e9ea] rounded-full h-2 sm:h-3 overflow-hidden shadow-inner">
                           <div 
                             className={`h-full transition-all duration-700 ${
                               averageScore >= 8 
@@ -142,25 +167,55 @@ function VideoCandidateList({ candidateList }) {
                       </div>
                       
                       {/* Enhanced Quick Stats */}
-                      <div className="grid grid-cols-2 gap-4 pt-3">
-                        <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border border-emerald-200">
-                          <CheckCircle className="h-5 w-5 text-emerald-600" />
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-2 sm:pt-3">
+                        <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border border-emerald-200">
+                          <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
                           <div>
-                            <div className="text-lg font-bold text-slate-900">{completedQuestions}</div>
-                            <div className="text-xs text-slate-600">Completed</div>
+                            <div className="text-sm sm:text-lg font-bold text-[#191011]">{answeredQuestions}</div>
+                            <div className="text-xs text-[#8e575f]">Answered</div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-xl border border-amber-200">
-                          <Star className="h-5 w-5 text-amber-600" />
+                        <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl border border-yellow-200">
+                          <SkipForward className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
                           <div>
-                            <div className="text-lg font-bold text-slate-900">{averageScore}</div>
-                            <div className="text-xs text-slate-600">Avg Score</div>
+                            <div className="text-sm sm:text-lg font-bold text-[#191011]">{skippedQuestions}</div>
+                            <div className="text-xs text-[#8e575f]">Skipped</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200">
+                          <RefreshCw className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
+                          <div>
+                            <div className="text-sm sm:text-lg font-bold text-[#191011]">{totalRetries}</div>
+                            <div className="text-xs text-[#8e575f]">Retries</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-xl border border-amber-200">
+                          <Star className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
+                          <div>
+                            <div className="text-sm sm:text-lg font-bold text-[#191011]">{averageScore}</div>
+                            <div className="text-xs text-[#8e575f]">Avg Score</div>
                           </div>
                         </div>
                       </div>
                       
+                      {/* Session Type Badge */}
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={`text-xs ${
+                          candidate.sessionId 
+                            ? 'border-blue-200 text-blue-700 bg-blue-50' 
+                            : 'border-gray-200 text-gray-700 bg-gray-50'
+                        }`}>
+                          {getSessionType(candidate)}
+                        </Badge>
+                        {candidate.sessionId && (
+                          <span className="text-xs text-gray-500">
+                            Session ID: {formatSessionId(candidate.sessionId)}
+                          </span>
+                        )}
+                      </div>
+                      
                       {/* Enhanced Action Button */}
-                      <div className="pt-3">
+                      <div className="pt-2 sm:pt-3">
                         <VideoCandidateFeedbackDialog candidate={candidate} />
                       </div>
                     </div>
@@ -171,21 +226,21 @@ function VideoCandidateList({ candidateList }) {
           })}
         </div>
       ) : (
-        <Card className="border-0 shadow-xl bg-gradient-to-br from-slate-50 to-blue-50">
-          <CardContent className="p-16 text-center">
-            <div className="space-y-6">
-              <div className="h-24 w-24 bg-gradient-to-r from-slate-200 to-blue-200 rounded-full flex items-center justify-center mx-auto shadow-lg">
-                <Users className="h-12 w-12 text-slate-400" />
+        <Card className="border-0 shadow-xl bg-gradient-to-br from-slate-50 to-red-50">
+          <CardContent className="p-8 sm:p-16 text-center">
+            <div className="space-y-4 sm:space-y-6">
+              <div className="h-20 w-20 sm:h-24 sm:w-24 bg-gradient-to-r from-[#f1e9ea] to-red-200 rounded-full flex items-center justify-center mx-auto shadow-lg">
+                <Users className="h-10 w-10 sm:h-12 sm:w-12 text-[#8e575f]" />
               </div>
-              <div className="space-y-3">
-                <h3 className="text-2xl font-bold text-slate-800">No Candidates Yet</h3>
-                <p className="text-slate-600 max-w-md mx-auto text-lg">
+              <div className="space-y-2 sm:space-y-3">
+                <h3 className="text-xl sm:text-2xl font-bold text-[#191011]">No Interview Sessions Yet</h3>
+                <p className="text-[#8e575f] max-w-md mx-auto text-sm sm:text-lg">
                   No candidates have completed this video interview yet. 
                   Share the interview link to start receiving submissions.
                 </p>
               </div>
-              <div className="flex items-center justify-center gap-3 text-sm text-slate-500">
-                <Clock className="h-5 w-5" />
+              <div className="flex items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm text-[#8e575f]">
+                <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
                 <span>Waiting for candidates...</span>
               </div>
             </div>
@@ -193,7 +248,7 @@ function VideoCandidateList({ candidateList }) {
         </Card>
       )}
     </div>
-  )
+  );
 }
 
 export default VideoCandidateList; 

@@ -81,8 +81,28 @@ function ScheduledInterview() {
             <div className='mt-5'>
                 <h2 className='font-bold text-2xl'>Jobs List with Candidate Feedback</h2>
                 <div className='p-5 flex flex-col gap-3 items-center'>
-                    <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-primary'></div>
-                    <p>Loading interviews...</p>
+                    <div className="relative mb-4">
+                        <img
+                            src="/logo.png"
+                            alt="Owl Loader"
+                            className="w-24 h-24 animate-owl-bounce"
+                            style={{ imageRendering: 'auto' }}
+                        />
+                        <style jsx>{`
+                            @keyframes owl-bounce {
+                                0%, 100% { transform: translateY(0) rotate(-5deg); }
+                                20% { transform: translateY(-16px) rotate(5deg); }
+                                40% { transform: translateY(0) rotate(-5deg); }
+                                60% { transform: translateY(-16px) rotate(5deg); }
+                                80% { transform: translateY(0) rotate(-5deg); }
+                            }
+                            .animate-owl-bounce {
+                                animation: owl-bounce 1s infinite;
+                            }
+                        `}</style>
+                    </div>
+                    <p className="font-medium">Loading interviews...</p>
+                    <p className="text-sm text-gray-500">The wise owl is running through your data</p>
                 </div>
             </div>
         );
