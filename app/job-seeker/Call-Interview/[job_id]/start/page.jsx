@@ -120,7 +120,7 @@ function StartInterview() {
             },
             model: {
                 provider: "openai",
-                model: "gpt-4",
+                model: "gpt-4o-mini",
                 messages: [
                     {
                         role: "system",

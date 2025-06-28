@@ -106,8 +106,11 @@ export default function JobSeekerPage() {
 
   const fetchAllJobs = async () => {
     try {
-      const jobs = await db.select().from(callInterview).orderBy(desc(callInterview.createdAt));
-      setAllJobs(jobs);
+      const callJobs = await db.select().from(callInterview).orderBy(desc(callInterview.createdAt));
+      const callJobsWithType = callJobs.map(j => ({ ...j, _type: 'call', type: 'Call Interview', jobDescription: j.jobDescription }));
+      const mockJobs = await db.select().from(MockInterview).orderBy(desc(MockInterview.createdAt));
+      const mockJobsWithType = mockJobs.map(j => ({ ...j, _type: 'mock', type: 'Video Interview', jobDescription: j.jobDesc }));
+      setAllJobs([...callJobsWithType, ...mockJobsWithType]);
     } catch (error) {
       console.error('Failed to fetch jobs:', error);
     } finally {
@@ -204,17 +207,17 @@ export default function JobSeekerPage() {
                   <div
                     className="w-10 h-10 rounded-full bg-gradient-to-br from-[#f1e9ea] to-[#e4d3d5] flex items-center justify-center overflow-hidden border-2 border-[#f1e9ea] hover:border-[#be3144] transition-colors shadow-sm cursor-pointer"
                     onClick={() => setMenuOpen((open) => !open)}
+                    style={{ cursor: 'pointer' }}
                   >
                     <UserAvatar 
                       profilePhoto={userProfile?.profilePhoto} 
                       userImageUrl={user.imageUrl} 
                       name={userProfile?.name || user.fullName} 
                       size={56} 
-                      className="border-2 border-[#f1e9ea]" 
                     />
                   </div>
                   {completedInterviews > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-[#be3144] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    <span className="absolute -top-2 -right-2 bg-[#be3144] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white shadow">
                       {completedInterviews}
                     </span>
                   )}
@@ -230,7 +233,6 @@ export default function JobSeekerPage() {
                           userImageUrl={user.imageUrl} 
                           name={userProfile?.name || user.fullName} 
                           size={56} 
-                          className="border-2 border-[#f1e9ea]" 
                         />
                         <div className="flex flex-col min-w-0">
                           <div className="font-bold text-[#191011] truncate">{user.fullName || 'User'}</div>
@@ -430,7 +432,7 @@ export default function JobSeekerPage() {
           <JobRecommendations />
         </section>
 
-        <LatestJobsSection allJobs={allJobs} />
+        <LatestJobsSection allJobs={allJobs} loadingJobs={loadingJobs} />
       </main>
       {/* Footer */}
       <footer className="bg-gradient-to-br from-[#191011] via-[#23202b] to-[#2B2D42] text-white pt-14 pb-8 px-4 border-t-4 border-[#be3144] mt-12 shadow-inner">

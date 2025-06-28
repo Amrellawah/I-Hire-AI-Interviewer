@@ -8,18 +8,23 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Eye, MessageSquare, Lightbulb, BarChart3, Target, Award, TrendingUp, ChevronDown, ChevronRight, Shield } from 'lucide-react';
+import { Eye, MessageSquare, Lightbulb, BarChart3, Target, Award, TrendingUp, ChevronDown, ChevronRight, Shield, Filter, Settings } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import CheatingDetectionReport from './CheatingDetectionReport';
+import LabelManagementDialog from './LabelManagementDialog';
 
 export default function VideoCandidateFeedbackDialog({ candidate }) {
   const [isOpen, setIsOpen] = useState(false);
   const [expandedQuestions, setExpandedQuestions] = useState(new Set());
+  const [labelFilter, setLabelFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('score');
 
   const calculateAverageScore = () => {
     if (!candidate.answers || candidate.answers.length === 0) return 0;
-    const ratings = candidate.answers.map(answer => parseInt(answer.rating) || 0);
+    const ratings = candidate.answers.map(answer => parseFloat(answer.rating) || 0);
     const sum = ratings.reduce((total, score) => total + score, 0);
     const average = ratings.length > 0 ? (sum / ratings.length).toFixed(1) : 0;
     return average;
@@ -41,6 +46,17 @@ export default function VideoCandidateFeedbackDialog({ candidate }) {
     if (score >= 8) return 'border-green-200';
     if (score >= 6) return 'border-yellow-200';
     return 'border-red-200';
+  };
+
+  const getCategoryColor = (category) => {
+    const colors = {
+      'CORE': 'bg-blue-100 text-blue-800 border-blue-200',
+      'TECHNICAL': 'bg-green-100 text-green-800 border-green-200',
+      'BEHAVIORAL': 'bg-purple-100 text-purple-800 border-purple-200',
+      'LEADERSHIP': 'bg-orange-100 text-orange-800 border-orange-200',
+      'GENERAL': 'bg-gray-100 text-gray-800 border-gray-200'
+    };
+    return colors[category] || colors['GENERAL'];
   };
 
   const toggleQuestion = (questionIndex) => {
@@ -84,19 +100,70 @@ export default function VideoCandidateFeedbackDialog({ candidate }) {
     const evaluationLabels = answer.detailedEvaluation || {};
     const detailedScores = answer.detailedScores || {};
 
-    // Sort labels by score for better visualization
-    const sortedLabels = Object.entries(evaluationLabels).sort((a, b) => {
+    // Filter and sort labels based on current settings
+    let filteredLabels = Object.entries(evaluationLabels);
+    
+    // Apply category filter
+    if (labelFilter !== 'all') {
+      filteredLabels = filteredLabels.filter(([label, details]) => {
+        const category = details.category || detailedScores?.[label]?.category || 'GENERAL';
+        return category === labelFilter;
+      });
+    }
+
+    // Sort labels
+    filteredLabels.sort((a, b) => {
       const scoreA = detailedScores?.[a[0]]?.score || 0;
       const scoreB = detailedScores?.[b[0]]?.score || 0;
-      return scoreB - scoreA; // Sort by highest score first
+      
+      if (sortBy === 'score') {
+        return scoreB - scoreA; // Highest score first
+      } else if (sortBy === 'name') {
+        return a[0].localeCompare(b[0]); // Alphabetical
+      } else if (sortBy === 'category') {
+        const categoryA = a[1].category || detailedScores?.[a[0]]?.category || 'GENERAL';
+        const categoryB = b[1].category || detailedScores?.[b[0]]?.category || 'GENERAL';
+        return categoryA.localeCompare(categoryB);
+      }
+      return 0;
     });
 
     return (
       <div className="space-y-3 sm:space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h4 className="font-semibold text-[#191011] flex items-center gap-2 text-sm sm:text-base">
           <BarChart3 className="h-4 w-4" />
           Detailed Evaluation
         </h4>
+          
+          {/* Filter and Sort Controls */}
+          <div className="flex items-center gap-2">
+            <Select value={labelFilter} onValueChange={setLabelFilter}>
+              <SelectTrigger className="w-32 h-8 text-xs">
+                <SelectValue placeholder="Filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Labels</SelectItem>
+                <SelectItem value="CORE">Core</SelectItem>
+                <SelectItem value="TECHNICAL">Technical</SelectItem>
+                <SelectItem value="BEHAVIORAL">Behavioral</SelectItem>
+                <SelectItem value="LEADERSHIP">Leadership</SelectItem>
+                <SelectItem value="GENERAL">General</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-32 h-8 text-xs">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="score">By Score</SelectItem>
+                <SelectItem value="name">By Name</SelectItem>
+                <SelectItem value="category">By Category</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         
         {/* Overall Score Summary */}
         {answer.evaluationScore && (
@@ -118,12 +185,33 @@ export default function VideoCandidateFeedbackDialog({ candidate }) {
           </div>
         )}
 
-        {/* Detailed Labels Grid */}
+        {/* Category-based Label Display */}
+        <div className="space-y-4">
+          {['CORE', 'TECHNICAL', 'BEHAVIORAL', 'LEADERSHIP', 'GENERAL'].map(category => {
+            const categoryLabels = filteredLabels.filter(([label, details]) => {
+              const labelCategory = details.category || detailedScores?.[label]?.category || 'GENERAL';
+              return labelCategory === category;
+            });
+
+            if (categoryLabels.length === 0) return null;
+
+            return (
+              <div key={category} className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Badge className={getCategoryColor(category)}>
+                    {category}
+                  </Badge>
+                  <h5 className="font-medium text-sm text-[#191011]">
+                    {categoryLabels.length} {categoryLabels.length === 1 ? 'label' : 'labels'}
+                  </h5>
+                </div>
+                
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-          {sortedLabels.map(([label, details]) => {
+                  {categoryLabels.map(([label, details]) => {
             const score = detailedScores?.[label]?.score || 0;
             const justification = details.justification || "";
             const labelValue = details.value || "Not Evaluated";
+                    const weight = detailedScores?.[label]?.weight || 1;
             
             return (
               <div 
@@ -134,6 +222,7 @@ export default function VideoCandidateFeedbackDialog({ candidate }) {
                   <div className="flex-1">
                     <h5 className="font-medium text-xs sm:text-sm text-[#191011]">{label}</h5>
                     <p className="text-xs text-[#8e575f] mt-1">{labelValue}</p>
+                            <p className="text-xs text-gray-500 mt-1">Weight: {weight}x</p>
                   </div>
                   <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getScoreColor(score)}`}>
                     {score}/10
@@ -147,17 +236,21 @@ export default function VideoCandidateFeedbackDialog({ candidate }) {
                   />
                 </div>
                 <p className="text-xs text-[#8e575f]">{justification}</p>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}
         </div>
 
         {/* Performance Insights */}
-        {sortedLabels.length > 0 && (
+        {filteredLabels.length > 0 && (
           <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-lg border border-green-200">
             <h5 className="font-medium text-sm text-[#191011] mb-2">Performance Insights</h5>
             <div className="space-y-1">
-              {sortedLabels.slice(0, 3).map(([label, details]) => {
+              {filteredLabels.slice(0, 3).map(([label, details]) => {
                 const score = detailedScores?.[label]?.score || 0;
                 return (
                   <div key={label} className="flex justify-between items-center text-xs">
@@ -175,6 +268,12 @@ export default function VideoCandidateFeedbackDialog({ candidate }) {
     );
   };
 
+  const handleLabelConfigSave = (config) => {
+    // Handle label configuration save
+    console.log('Label configuration saved:', config);
+    toast.success('Label configuration updated!');
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -185,12 +284,17 @@ export default function VideoCandidateFeedbackDialog({ candidate }) {
       </DialogTrigger>
       <DialogContent className="max-w-[95vw] sm:max-w-4xl lg:max-w-6xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
           <DialogTitle className="text-lg sm:text-xl font-bold text-[#191011]">
             Candidate Feedback - {candidate.userName}
           </DialogTitle>
           <DialogDescription className="text-sm sm:text-base text-[#8e575f]">
             Comprehensive analysis of {candidate.userName}'s video interview performance
           </DialogDescription>
+            </div>
+            <LabelManagementDialog onSave={handleLabelConfigSave} />
+          </div>
         </DialogHeader>
         
         <div className="space-y-6">
@@ -239,7 +343,7 @@ export default function VideoCandidateFeedbackDialog({ candidate }) {
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
               {candidate.answers?.map((answer, index) => {
-                const score = parseInt(answer.rating) || 0;
+                const score = parseFloat(answer.rating) || 0;
                 const hasDetailedEvaluation = answer.detailedEvaluation || answer.detailedScores;
                 
                 return (

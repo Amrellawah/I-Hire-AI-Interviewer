@@ -67,7 +67,13 @@ function Interview({ params }) {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ 
                 video: true, 
-                audio: true 
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                    sampleRate: 44100,
+                    channelCount: 1
+                }
             });
             stream.getTracks().forEach(track => track.stop());
             setWebCamEnabled(true);
@@ -150,7 +156,7 @@ function Interview({ params }) {
                     {webCamEnabled ? (
                         <div className="relative w-full">
                             <Webcam
-                                audio={true}
+                                audio={false}
                                 videoConstraints={{ facingMode: 'user' }}
                                 onUserMedia={() => setWebCamEnabled(true)}
                                 onUserMediaError={() => setWebCamEnabled(false)}

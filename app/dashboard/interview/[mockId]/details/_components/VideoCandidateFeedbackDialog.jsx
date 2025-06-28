@@ -17,7 +17,7 @@ function VideoCandidateFeedbackDialog({ candidate }) {
     if (!candidate.answers || candidate.answers.length === 0) return 0;
     
     const ratings = candidate.answers.map(answer => {
-      const rating = parseInt(answer.rating) || 0;
+      const rating = parseFloat(answer.rating) || 0;
       return rating;
     });
     

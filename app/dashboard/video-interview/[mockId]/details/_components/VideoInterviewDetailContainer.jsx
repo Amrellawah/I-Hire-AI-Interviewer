@@ -23,9 +23,11 @@ import {
   Zap,
   Shield,
   Globe,
-  Video
+  Video,
+  PieChart
 } from 'lucide-react';
 import VideoCandidateList from './VideoCandidateList';
+import LabelAnalytics from './LabelAnalytics';
 import moment from 'moment';
 
 function VideoInterviewDetailContainer({ interviewDetail, candidateList }) {
@@ -43,7 +45,7 @@ function VideoInterviewDetailContainer({ interviewDetail, candidateList }) {
     }
 
     const scores = candidateList.map(candidate => {
-      const ratings = candidate.answers?.map(answer => parseInt(answer.rating) || 0) || [];
+      const ratings = candidate.answers?.map(answer => parseFloat(answer.rating) || 0) || [];
       return ratings.length > 0 ? ratings.reduce((sum, score) => sum + score, 0) / ratings.length : 0;
     });
 
@@ -147,7 +149,7 @@ function VideoInterviewDetailContainer({ interviewDetail, candidateList }) {
 
       {/* Enhanced Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 bg-[#f1e9ea] p-1 sm:p-2 rounded-2xl">
+        <TabsList className="grid w-full grid-cols-4 bg-[#f1e9ea] p-1 sm:p-2 rounded-2xl">
           <TabsTrigger value="overview" className="transition-all font-medium rounded-xl flex items-center justify-center h-8 sm:h-10 text-xs sm:text-sm
             data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#be3144] data-[state=active]:to-[#f05941] data-[state=active]:text-white data-[state=active]:shadow-none
             data-[state=inactive]:bg-transparent data-[state=inactive]:text-[#8e575f]">
@@ -161,6 +163,13 @@ function VideoInterviewDetailContainer({ interviewDetail, candidateList }) {
             <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
             <span className="hidden sm:inline">Candidates</span>
             <span className="sm:hidden">Candidates</span>
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="transition-all font-medium rounded-xl flex items-center justify-center h-8 sm:h-10 text-xs sm:text-sm
+            data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#be3144] data-[state=active]:to-[#f05941] data-[state=active]:text-white data-[state=active]:shadow-none
+            data-[state=inactive]:bg-transparent data-[state=inactive]:text-[#8e575f]">
+            <PieChart className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Analytics</span>
+            <span className="sm:hidden">Analytics</span>
           </TabsTrigger>
           <TabsTrigger value="questions" className="transition-all font-medium rounded-xl flex items-center justify-center h-8 sm:h-10 text-xs sm:text-sm
             data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#be3144] data-[state=active]:to-[#f05941] data-[state=active]:text-white data-[state=active]:shadow-none
@@ -201,75 +210,61 @@ function VideoInterviewDetailContainer({ interviewDetail, candidateList }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white/60 rounded-xl backdrop-blur-sm">
-                  <Globe className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600 flex-shrink-0" />
+                  <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <span className="text-xs sm:text-sm text-[#8e575f]">Category</span>
-                    <p className="font-semibold text-[#191011] text-sm sm:text-base">{interviewDetail?.category || 'General'}</p>
+                    <span className="text-xs sm:text-sm text-[#8e575f]">Duration</span>
+                    <p className="font-semibold text-[#191011] text-sm sm:text-base">
+                      {interviewDetail?.duration || 'Not specified'}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white/60 rounded-xl backdrop-blur-sm">
-                  <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-amber-600 flex-shrink-0" />
+                  <MapPin className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <span className="text-xs sm:text-sm text-[#8e575f]">Experience Required</span>
-                    <p className="font-semibold text-[#191011] text-sm sm:text-base">{interviewDetail?.jobExperience}</p>
+                    <span className="text-xs sm:text-sm text-[#8e575f]">Location</span>
+                    <p className="font-semibold text-[#191011] text-sm sm:text-base">
+                      {interviewDetail?.location || 'Remote'}
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Enhanced Performance Insights */}
-            <Card className="border-0 shadow-xl bg-gradient-to-br from-slate-50 to-emerald-50">
-              <CardHeader className="bg-gradient-to-r from-emerald-500 to-green-600 rounded-t-xl text-white">
+            {/* Enhanced Performance Metrics */}
+            <Card className="border-0 shadow-xl bg-gradient-to-br from-slate-50 to-blue-50">
+              <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-xl text-white">
                 <CardTitle className="flex items-center gap-3">
                   <div className="h-10 w-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
                     <TrendingUp className="h-5 w-5 text-white" />
                   </div>
-                  Performance Insights
+                  Performance Metrics
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-                {stats.totalCandidates > 0 ? (
-                  <>
-                    <div className="space-y-3 sm:space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs sm:text-sm font-medium text-[#8e575f]">Success Rate</span>
-                        <span className="font-bold text-emerald-600 text-lg sm:text-xl">
-                          {((stats.topPerformers / stats.totalCandidates) * 100).toFixed(1)}%
-                        </span>
+              <CardContent className="p-4 sm:p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-4 bg-white/60 rounded-xl backdrop-blur-sm">
+                    <div className="text-2xl font-bold text-emerald-600">{stats.completionRate}%</div>
+                    <div className="text-xs text-[#8e575f]">Completion Rate</div>
                       </div>
-                      <div className="w-full bg-[#f1e9ea] rounded-full h-2 sm:h-3 overflow-hidden">
-                        <div 
-                          className="bg-gradient-to-r from-emerald-400 to-green-600 h-2 sm:h-3 rounded-full transition-all duration-500"
-                          style={{ width: `${(stats.topPerformers / stats.totalCandidates) * 100}%` }}
-                        />
-                      </div>
-                      <p className="text-xs text-[#8e575f]">
-                        {stats.topPerformers} out of {stats.totalCandidates} candidates scored 8+ out of 10
-                      </p>
-                    </div>
-                    
-                    <div className="space-y-3 sm:space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs sm:text-sm font-medium text-[#8e575f]">Completion Rate</span>
-                        <span className="font-bold text-[#a31d1d] text-lg sm:text-xl">{stats.completionRate}%</span>
-                      </div>
-                      <div className="w-full bg-[#f1e9ea] rounded-full h-2 sm:h-3 overflow-hidden">
-                        <div 
-                          className="bg-gradient-to-r from-[#be3144] to-[#f05941] h-2 sm:h-3 rounded-full transition-all duration-500"
-                          style={{ width: `${stats.completionRate}%` }}
-                        />
+                  <div className="text-center p-4 bg-white/60 rounded-xl backdrop-blur-sm">
+                    <div className="text-2xl font-bold text-blue-600">{stats.totalCandidates}</div>
+                    <div className="text-xs text-[#8e575f]">Total Candidates</div>
                       </div>
                     </div>
-                  </>
-                ) : (
-                  <div className="text-center py-6 sm:py-8">
-                    <div className="h-16 w-16 sm:h-20 sm:w-20 bg-[#f1e9ea] rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                      <Users className="h-8 w-8 sm:h-10 sm:w-10 text-[#8e575f]" />
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-white/60 rounded-xl backdrop-blur-sm">
+                    <span className="text-sm text-[#8e575f]">Top Performers</span>
+                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+                      {stats.topPerformers} candidates
+                    </Badge>
                     </div>
-                    <h3 className="text-base sm:text-lg font-semibold text-[#191011] mb-2">No Candidates Yet</h3>
-                    <p className="text-[#8e575f] text-sm sm:text-base">No candidates have completed this interview yet</p>
+                  <div className="flex items-center justify-between p-3 bg-white/60 rounded-xl backdrop-blur-sm">
+                    <span className="text-sm text-[#8e575f]">Need Improvement</span>
+                    <Badge className="bg-rose-100 text-rose-800 border-rose-200">
+                      {stats.needsImprovement} candidates
+                    </Badge>
                   </div>
-                )}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -279,53 +274,29 @@ function VideoInterviewDetailContainer({ interviewDetail, candidateList }) {
           <VideoCandidateList candidateList={candidateList} />
         </TabsContent>
 
+        <TabsContent value="analytics" className="space-y-6">
+          <LabelAnalytics candidateList={candidateList} />
+        </TabsContent>
+
         <TabsContent value="questions" className="space-y-6">
-          <Card className="border-0 shadow-xl bg-gradient-to-br from-slate-50 to-red-50">
-            <CardHeader className="bg-gradient-to-r from-[#be3144] to-[#f05941] rounded-t-xl text-white">
+          {/* Questions Analysis */}
+          <Card className="border-0 shadow-xl bg-gradient-to-br from-slate-50 to-purple-50">
+            <CardHeader className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-t-xl text-white">
               <CardTitle className="flex items-center gap-3">
                 <div className="h-10 w-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                  <Target className="h-5 w-5 text-white" />
+                  <MessageCircleQuestion className="h-5 w-5 text-white" />
                 </div>
-                Interview Questions ({interviewDetail?.questionList?.length || 0})
+                Questions Analysis
               </CardTitle>
-              <CardDescription className="text-red-100">
-                Questions used in this video interview
-              </CardDescription>
             </CardHeader>
             <CardContent className="p-4 sm:p-6">
-              {interviewDetail?.questionList?.length > 0 ? (
-                <div className="space-y-3 sm:space-y-4">
-                  {interviewDetail.questionList.map((question, index) => (
-                    <div key={index} className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 bg-white rounded-xl border border-[#f1e9ea] hover:border-[#be3144] hover:shadow-lg transition-all duration-200">
-                      <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-[#be3144] to-[#f05941] text-white rounded-lg flex items-center justify-center text-xs sm:text-sm font-bold">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-[#191011] leading-relaxed mb-2 text-sm sm:text-base">
-                          {question.question}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge className="bg-[#f1e9ea] text-[#8e575f] border-[#f1e9ea] text-xs">
-                            {question.type || 'General'}
-                          </Badge>
-                          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs">
-                            <Play className="h-3 w-3 mr-1" />
-                            Video
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+              <div className="text-center py-8">
+                <MessageCircleQuestion className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-600 mb-2">Questions Analysis</h3>
+                <p className="text-gray-500">
+                  Detailed question performance analysis will be available here.
+                </p>
                 </div>
-              ) : (
-                <div className="text-center py-8 sm:py-12">
-                  <div className="h-16 w-16 sm:h-20 sm:w-20 bg-[#f1e9ea] rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                    <MessageCircleQuestion className="h-8 w-8 sm:h-10 sm:w-10 text-[#8e575f]" />
-                  </div>
-                  <h3 className="text-base sm:text-lg font-semibold text-[#191011] mb-2">No Questions Found</h3>
-                  <p className="text-[#8e575f] text-sm sm:text-base">No questions have been set for this interview</p>
-                </div>
-              )}
             </CardContent>
           </Card>
         </TabsContent>

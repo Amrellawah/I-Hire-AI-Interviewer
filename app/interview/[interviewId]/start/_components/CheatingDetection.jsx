@@ -436,7 +436,13 @@ const CheatingDetection = ({
     try {
       // Try to get audio stream from webcam
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 44100,
+          channelCount: 1
+        },
         video: false
       });
       return stream;

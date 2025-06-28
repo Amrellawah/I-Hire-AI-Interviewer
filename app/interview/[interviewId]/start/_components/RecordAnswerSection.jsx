@@ -71,7 +71,14 @@ function RecordAnswerSection({
     status,
     error: recordingError
   } = useReactMediaRecorder({
-    audio: true,
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      // Disable audio monitoring to prevent hearing your own voice
+      sampleRate: 44100,
+      channelCount: 1
+    },
     onStart: () => {
       setIsRecording(true);
       setDetectedLanguage(null);
@@ -166,7 +173,7 @@ function RecordAnswerSection({
       
       // Format the result for compatibility with existing UI
       return {
-        rating: evaluationResult.traditional_feedback?.rating || evaluationResult.evaluation_score,
+        rating: evaluationResult.evaluation_score || evaluationResult.traditional_feedback?.rating || 5,
         feedback: evaluationResult.traditional_feedback?.feedback || "Evaluation completed successfully",
         suggestions: evaluationResult.traditional_feedback?.suggestions || ["Continue practicing", "Focus on clarity", "Provide more examples"],
         transcriptionQuality: evaluationResult.traditional_feedback?.transcriptionQuality || 5,
@@ -386,15 +393,10 @@ function RecordAnswerSection({
       <div className={`relative mb-6 w-full aspect-video rounded-xl overflow-hidden border-4 transition-all ${isRecording ? 'border-[#be3144] shadow-lg' : 'border-gray-200'}`}>
         <Webcam
           ref={webcamRef}
-          audio={true}
+          audio={false}
           mirrored={true}
           screenshotFormat="image/jpeg"
           videoConstraints={{ facingMode: 'user' }}
-          audioConstraints={{ 
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }}
           className="w-full h-full object-cover rounded-xl"
           onUserMediaError={(error) => {
             console.error('Webcam error:', error);

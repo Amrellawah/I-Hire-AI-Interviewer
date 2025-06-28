@@ -37,6 +37,9 @@ const LABEL_SCORE_MAP = {
   
   // Answer Length
   'Extremely Short': 1, 'Very Short': 2.5, 'Short': 5, 'Medium': 10, 'Detailed': 8, 'Long': 6, 'Very Long': 3, 'Excessively Long': 1,
+  
+  // Answer Completeness
+  'Not Complete': 0, 'Partially Complete': 3, 'Mostly Complete': 6, 'Complete': 8, 'Thoroughly Complete': 10,
 };
 
 // Label weights
@@ -88,6 +91,8 @@ Collaboration:['Sole Contribution', 'Minimal Collaboration', 'Moderate Collabora
 Impact:['No Impact', 'Negligible Impact', 'Low Impact', 'Moderate Impact', 'Strong Impact', 'High Impact', 'Transformational Impact']
 
 Answer Length:['Extremely Short', 'Very Short', 'Short', 'Medium', 'Detailed', 'Long', 'Very Long', 'Excessively Long']
+
+Answer Completeness:['Not Complete', 'Partially Complete', 'Mostly Complete', 'Complete', 'Thoroughly Complete']
 
 **IMPORTANT**: Analyze the response and provide these specific labels based on the content:
 
@@ -187,7 +192,7 @@ async function evaluate_answer(question, answer) {
         total_weight += weight;
       }
 
-      const overall_score = total_weight ? Math.round((total_score / total_weight) * 10) / 10 : 5;
+      const overall_score = total_weight ? (total_score / total_weight) : 5; // Preserve decimal precision
 
       return {
         labels: labels,
@@ -286,7 +291,7 @@ export async function POST(req) {
     const result = {
       ...evaluation,
       traditional_feedback: feedback,
-      combined_score: Math.round(((evaluation.evaluation_score + feedback.rating) / 2) * 10) / 10,
+      combined_score: ((evaluation.evaluation_score + feedback.rating) / 2), // Preserve decimal precision
       timestamp: new Date().toISOString()
     };
 

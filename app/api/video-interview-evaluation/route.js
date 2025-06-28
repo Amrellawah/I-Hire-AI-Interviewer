@@ -6,7 +6,7 @@ const client = new OpenAI({
   apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY
 });
 
-// Scoring map for label categories
+// Enhanced scoring map for label categories
 const LABEL_SCORE_MAP = {
   // Degree-based
   'None': 0, 'Minimal': 1.7, 'Low': 3.3, 'Moderate': 5, 'Considerable': 6.7, 'High': 8.3, 'Extensive': 10,
@@ -37,10 +37,44 @@ const LABEL_SCORE_MAP = {
   
   // Answer Length
   'Extremely Short': 1, 'Very Short': 2.5, 'Short': 5, 'Medium': 10, 'Detailed': 8, 'Long': 6, 'Very Long': 3, 'Excessively Long': 1,
+  
+  // Answer Completeness
+  'Not Complete': 0, 'Partially Complete': 3, 'Mostly Complete': 6, 'Complete': 8, 'Thoroughly Complete': 10,
+  
+  // Leadership
+  'No Leadership': 0, 'Minimal Leadership': 2, 'Emerging Leader': 4, 'Effective Leader': 6, 'Strong Leader': 8, 'Exceptional Leader': 10,
+  
+  // Innovation
+  'No Innovation': 0, 'Basic Innovation': 2, 'Moderate Innovation': 4, 'Good Innovation': 6, 'Strong Innovation': 8, 'Breakthrough Innovation': 10,
+  
+  // Adaptability
+  'Rigid': 0, 'Somewhat Flexible': 2, 'Moderately Adaptable': 4, 'Adaptable': 6, 'Highly Adaptable': 8, 'Exceptionally Adaptable': 10,
+  
+  // Cultural Fit
+  'Poor Fit': 0, 'Questionable Fit': 2, 'Adequate Fit': 4, 'Good Fit': 6, 'Strong Fit': 8, 'Perfect Fit': 10,
+  
+  // Stress Management
+  'Poor Under Pressure': 0, 'Struggles Under Pressure': 2, 'Handles Pressure Adequately': 4, 'Good Under Pressure': 6, 'Thrives Under Pressure': 8, 'Exceptional Under Pressure': 10,
+  
+  // Learning Ability
+  'Slow Learner': 0, 'Moderate Learner': 2, 'Good Learner': 4, 'Fast Learner': 6, 'Quick Learner': 8, 'Exceptional Learner': 10,
+  
+  // Problem Complexity
+  'Simple Problems': 0, 'Basic Problems': 2, 'Moderate Problems': 4, 'Complex Problems': 6, 'Very Complex Problems': 8, 'Extremely Complex Problems': 10,
+  
+  // Communication Style
+  'Unclear': 0, 'Somewhat Clear': 2, 'Generally Clear': 4, 'Clear': 6, 'Very Clear': 8, 'Exceptionally Clear': 10,
+  
+  // Professional Maturity
+  'Immature': 0, 'Somewhat Mature': 2, 'Moderately Mature': 4, 'Mature': 6, 'Very Mature': 8, 'Exceptionally Mature': 10,
+  
+  // Team Dynamics
+  'Disruptive': 0, 'Neutral': 2, 'Supportive': 4, 'Collaborative': 6, 'Enhancing': 8, 'Transformative': 10,
 };
 
-// Optional custom weight per label
+// Enhanced label weights with interview type considerations
 const LABEL_WEIGHTS = {
+  // Core evaluation labels (universal)
   "Relevance to Question": 1.5,
   "Technical Accuracy": 1.5,
   "Clarity of Expression": 1.2,
@@ -50,19 +84,103 @@ const LABEL_WEIGHTS = {
   "Problem-Solving Approach": 1.3,
   "Communication Skills": 1.1,
   "Confidence Level": 1.0,
-  "Answer Completeness": 1.2
+  "Answer Completeness": 1.2,
+  
+  // Technical interview specific
+  "Technical Accuracy": 2.0,
+  "Problem-Solving Approach": 1.8,
+  "Depth of Knowledge": 1.7,
+  "Practical Application": 1.6,
+  
+  // Behavioral interview specific
+  "Communication Skills": 1.8,
+  "Leadership": 1.6,
+  "Team Dynamics": 1.5,
+  "Cultural Fit": 1.4,
+  "Adaptability": 1.3,
+  "Stress Management": 1.2,
+  
+  // Leadership interview specific
+  "Leadership": 2.0,
+  "Team Dynamics": 1.8,
+  "Innovation": 1.6,
+  "Impact": 1.7,
+  "Professional Maturity": 1.5,
+  
+  // General professional skills
+  "Learning Ability": 1.1,
+  "Problem Complexity": 1.2,
+  "Communication Style": 1.3,
+  "Professional Maturity": 1.2,
 };
 
-function get_evaluation_prompt(question, answer) {
+// Label templates for different interview types
+const LABEL_TEMPLATES = {
+  technical: [
+    "Technical Accuracy",
+    "Problem-Solving Approach", 
+    "Depth of Knowledge",
+    "Practical Application",
+    "Relevance to Question",
+    "Answer Structure",
+    "Clarity of Expression",
+    "Communication Skills",
+    "Confidence Level",
+    "Answer Completeness"
+  ],
+  behavioral: [
+    "Communication Skills",
+    "Leadership",
+    "Team Dynamics", 
+    "Cultural Fit",
+    "Adaptability",
+    "Stress Management",
+    "Problem-Solving Approach",
+    "Practical Application",
+    "Relevance to Question",
+    "Answer Structure"
+  ],
+  leadership: [
+    "Leadership",
+    "Team Dynamics",
+    "Innovation",
+    "Impact",
+    "Professional Maturity",
+    "Communication Skills",
+    "Problem-Solving Approach",
+    "Adaptability",
+    "Strategic Thinking",
+    "Influence"
+  ],
+  general: [
+    "Relevance to Question",
+    "Communication Skills",
+    "Answer Structure",
+    "Clarity of Expression",
+    "Confidence Level",
+    "Answer Completeness",
+    "Professional Maturity",
+    "Learning Ability",
+    "Cultural Fit",
+    "Adaptability"
+  ]
+};
+
+function get_evaluation_prompt(question, answer, interviewType = 'general') {
+  const template = LABEL_TEMPLATES[interviewType] || LABEL_TEMPLATES.general;
+  
   return `Act like a senior AI evaluation architect and enterprise prompt engineer with 15+ years of experience designing human-in-the-loop assessment systems for technical and behavioral interviews. You specialize in deconstructing candidate responses into detailed, structured labels that support manual review, fairness, and consistent interpretation across large-scale hiring processes.
 
 You are tasked with extracting granular evaluation **labels** from a candidate's answer to an interview question. These labels will be **manually scored** later by a human reviewer. Your job is to output **descriptive label values and justifications** — no scoring or opinions.
+
+**Interview Type**: ${interviewType.charAt(0).toUpperCase() + interviewType.slice(1)}
 
 Output a **JSON object** in this format:
 {
   "Label Name": {
     "value": "STANDARDIZED_LABEL_VALUE",
-    "justification": "Brief explanation of why the label applies, based only on the candidate's answer."
+    "justification": "Brief explanation of why the label applies, based only on the candidate's answer.",
+    "category": "CORE|TECHNICAL|BEHAVIORAL|LEADERSHIP|GENERAL"
   },
   ...
 }
@@ -87,20 +205,33 @@ Collaboration:['Sole Contribution', 'Minimal Collaboration', 'Moderate Collabora
 
 Impact:['No Impact', 'Negligible Impact', 'Low Impact', 'Moderate Impact', 'Strong Impact', 'High Impact', 'Transformational Impact']
 
+Leadership:['No Leadership', 'Minimal Leadership', 'Emerging Leader', 'Effective Leader', 'Strong Leader', 'Exceptional Leader']
+
+Innovation:['No Innovation', 'Basic Innovation', 'Moderate Innovation', 'Good Innovation', 'Strong Innovation', 'Breakthrough Innovation']
+
+Adaptability:['Rigid', 'Somewhat Flexible', 'Moderately Adaptable', 'Adaptable', 'Highly Adaptable', 'Exceptionally Adaptable']
+
+Cultural Fit:['Poor Fit', 'Questionable Fit', 'Adequate Fit', 'Good Fit', 'Strong Fit', 'Perfect Fit']
+
+Stress Management:['Poor Under Pressure', 'Struggles Under Pressure', 'Handles Pressure Adequately', 'Good Under Pressure', 'Thrives Under Pressure', 'Exceptional Under Pressure']
+
+Learning Ability:['Slow Learner', 'Moderate Learner', 'Good Learner', 'Fast Learner', 'Quick Learner', 'Exceptional Learner']
+
+Problem Complexity:['Simple Problems', 'Basic Problems', 'Moderate Problems', 'Complex Problems', 'Very Complex Problems', 'Extremely Complex Problems']
+
+Communication Style:['Unclear', 'Somewhat Clear', 'Generally Clear', 'Clear', 'Very Clear', 'Exceptionally Clear']
+
+Professional Maturity:['Immature', 'Somewhat Mature', 'Moderately Mature', 'Mature', 'Very Mature', 'Exceptionally Mature']
+
+Team Dynamics:['Disruptive', 'Neutral', 'Supportive', 'Collaborative', 'Enhancing', 'Transformative']
+
 Answer Length:['Extremely Short', 'Very Short', 'Short', 'Medium', 'Detailed', 'Long', 'Very Long', 'Excessively Long']
 
-**IMPORTANT**: Analyze the response and provide these specific labels based on the content:
+Answer Completeness:['Not Complete', 'Partially Complete', 'Mostly Complete', 'Complete', 'Thoroughly Complete']
 
-1. **Relevance to Question** - How well the answer addresses the specific question asked
-2. **Technical Accuracy** - Correctness of technical concepts, facts, or methodologies mentioned
-3. **Clarity of Expression** - How clearly and understandably the candidate communicates their thoughts
-4. **Answer Structure** - Logical organization and flow of the response
-5. **Depth of Knowledge** - Level of expertise and understanding demonstrated
-6. **Practical Application** - How well the candidate can apply concepts to real-world scenarios
-7. **Problem-Solving Approach** - Methodology and reasoning used to address challenges
-8. **Communication Skills** - Effectiveness of verbal communication and articulation
-9. **Confidence Level** - Self-assurance and conviction in the response
-10. **Answer Completeness** - How thoroughly the question was addressed
+**IMPORTANT**: Analyze the response and provide these specific labels based on the content and interview type:
+
+${template.map((label, index) => `${index + 1}. **${label}** - ${getLabelDescription(label)}`).join('\n')}
 
 The interview question is:
 ${question}
@@ -111,7 +242,34 @@ ${answer}
 Take a deep breath and work on this problem step-by-step.`;
 }
 
-async function evaluate_answer(question, answer) {
+function getLabelDescription(label) {
+  const descriptions = {
+    "Relevance to Question": "How well the answer addresses the specific question asked",
+    "Technical Accuracy": "Correctness of technical concepts, facts, or methodologies mentioned",
+    "Clarity of Expression": "How clearly and understandably the candidate communicates their thoughts",
+    "Answer Structure": "Logical organization and flow of the response",
+    "Depth of Knowledge": "Level of expertise and understanding demonstrated",
+    "Practical Application": "How well the candidate can apply concepts to real-world scenarios",
+    "Problem-Solving Approach": "Methodology and reasoning used to address challenges",
+    "Communication Skills": "Effectiveness of verbal communication and articulation",
+    "Confidence Level": "Self-assurance and conviction in the response",
+    "Answer Completeness": "How thoroughly the question was addressed",
+    "Leadership": "Demonstrated leadership qualities and capabilities",
+    "Team Dynamics": "Understanding and effectiveness in team environments",
+    "Innovation": "Creativity and innovative thinking demonstrated",
+    "Impact": "Measurable impact and results achieved",
+    "Adaptability": "Flexibility and ability to handle change",
+    "Cultural Fit": "Alignment with organizational values and culture",
+    "Stress Management": "Ability to perform under pressure",
+    "Learning Ability": "Capacity to acquire new knowledge and skills",
+    "Professional Maturity": "Professional judgment and decision-making",
+    "Strategic Thinking": "Long-term planning and strategic vision"
+  };
+  
+  return descriptions[label] || "Evaluation of this specific aspect";
+}
+
+async function evaluate_answer(question, answer, interviewType = 'general') {
   try {
     // Skip evaluation for empty answers
     if (!answer || answer.trim() === "" || answer === "[SKIPPED]") {
@@ -122,8 +280,8 @@ async function evaluate_answer(question, answer) {
       };
     }
 
-    // Get the evaluation prompt
-    const prompt = get_evaluation_prompt(question, answer);
+    // Get the evaluation prompt with interview type
+    const prompt = get_evaluation_prompt(question, answer, interviewType);
 
     try {
       // Call the OpenAI API for evaluation
@@ -157,7 +315,7 @@ async function evaluate_answer(question, answer) {
       // Parse the raw JSON response
       const labels = JSON.parse(content);
 
-      // Calculate scores
+      // Calculate scores with interview type specific weights
       const scores = {};
       let total_score = 0;
       let total_weight = 0;
@@ -171,8 +329,20 @@ async function evaluate_answer(question, answer) {
           label_score = 5; // Default middle score
         }
 
-        // Weight per label (default is 1)
-        const weight = LABEL_WEIGHTS[label] || 1;
+        // Get weight based on interview type and label
+        let weight = 1; // Default weight
+        
+        // Check for interview type specific weights first
+        if (interviewType === 'technical' && ['Technical Accuracy', 'Problem-Solving Approach', 'Depth of Knowledge', 'Practical Application'].includes(label)) {
+          weight = LABEL_WEIGHTS[label] || 1.5;
+        } else if (interviewType === 'behavioral' && ['Communication Skills', 'Leadership', 'Team Dynamics', 'Cultural Fit', 'Adaptability', 'Stress Management'].includes(label)) {
+          weight = LABEL_WEIGHTS[label] || 1.4;
+        } else if (interviewType === 'leadership' && ['Leadership', 'Team Dynamics', 'Innovation', 'Impact', 'Professional Maturity'].includes(label)) {
+          weight = LABEL_WEIGHTS[label] || 1.6;
+        } else {
+          // Use general weights
+          weight = LABEL_WEIGHTS[label] || 1;
+        }
 
         const weighted = label_score * weight;
 
@@ -181,21 +351,30 @@ async function evaluate_answer(question, answer) {
           score: label_score,
           weight: weight,
           weighted_score: weighted,
-          justification: details.justification || ""
+          justification: details.justification || "",
+          category: details.category || "GENERAL"
         };
 
         total_score += weighted;
         total_weight += weight;
       }
 
-      const overall_score = total_weight ? Math.round((total_score / total_weight) * 10) / 10 : 5; // Default to middle score if no weights
+      const overall_score = total_weight ? (total_score / total_weight) : 5; // Preserve decimal precision
 
       // Format the result to match the expected structure
       return {
         labels: labels,
         evaluation_score: overall_score,
         detailed_scores: scores,
-        skipped: false
+        skipped: false,
+        interview_type: interviewType,
+        label_categories: {
+          core: Object.keys(labels).filter(label => scores[label]?.category === 'CORE'),
+          technical: Object.keys(labels).filter(label => scores[label]?.category === 'TECHNICAL'),
+          behavioral: Object.keys(labels).filter(label => scores[label]?.category === 'BEHAVIORAL'),
+          leadership: Object.keys(labels).filter(label => scores[label]?.category === 'LEADERSHIP'),
+          general: Object.keys(labels).filter(label => scores[label]?.category === 'GENERAL')
+        }
       };
 
     } catch (api_error) {
@@ -231,7 +410,7 @@ async function evaluate_answer(question, answer) {
 
 export async function POST(req) {
   try {
-    const { question, answer, interviewType = 'technical' } = await req.json();
+    const { question, answer, interviewType = 'general' } = await req.json();
 
     if (!question || !answer) {
       return NextResponse.json(
@@ -240,8 +419,8 @@ export async function POST(req) {
       );
     }
 
-    // Evaluate the answer using the sophisticated evaluation system
-    const evaluation = await evaluate_answer(question, answer);
+    // Evaluate the answer using the sophisticated evaluation system with interview type
+    const evaluation = await evaluate_answer(question, answer, interviewType);
 
     // Generate additional feedback using the existing system for compatibility
     const feedbackPrompt = `Analyze this interview response:
@@ -290,8 +469,10 @@ export async function POST(req) {
     const result = {
       ...evaluation,
       traditional_feedback: feedback,
-      combined_score: Math.round(((evaluation.evaluation_score + feedback.rating) / 2) * 10) / 10,
-      timestamp: new Date().toISOString()
+      combined_score: ((evaluation.evaluation_score + feedback.rating) / 2), // Preserve decimal precision
+      timestamp: new Date().toISOString(),
+      interview_type: interviewType,
+      label_template_used: LABEL_TEMPLATES[interviewType] || LABEL_TEMPLATES.general
     };
 
     return NextResponse.json(result);

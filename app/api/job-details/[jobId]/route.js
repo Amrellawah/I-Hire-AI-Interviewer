@@ -4,7 +4,8 @@ import { JobDetails } from '@/utils/schema';
 import { eq } from 'drizzle-orm';
 
 export async function GET(req, { params }) {
-  const { jobId } = params;
+  const resolvedParams = await params;
+  const { jobId } = resolvedParams;
   try {
     const result = await db.select().from(JobDetails).where(eq(JobDetails.id, Number(jobId)));
     if (!result || result.length === 0) {
