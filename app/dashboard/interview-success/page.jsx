@@ -3,8 +3,10 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, Calendar, ArrowRight, Copy, Send } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
+import { Suspense } from 'react';
 
-export default function InterviewSuccessPage() {
+// Separate component that uses useSearchParams
+function InterviewSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const mockId = searchParams.get('mockId');
@@ -101,5 +103,34 @@ export default function InterviewSuccessPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Loading fallback component
+function InterviewSuccessLoading() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8">
+      <div className="max-w-2xl mx-auto px-4">
+        <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+          <div className="animate-pulse">
+            <div className="flex justify-center mb-6">
+              <div className="p-4 bg-gray-200 rounded-full w-20 h-20"></div>
+            </div>
+            <div className="h-8 bg-gray-200 rounded mb-4"></div>
+            <div className="h-6 bg-gray-200 rounded mb-2"></div>
+            <div className="h-6 bg-gray-200 rounded w-3/4 mx-auto"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function InterviewSuccessPage() {
+  return (
+    <Suspense fallback={<InterviewSuccessLoading />}>
+      <InterviewSuccessContent />
+    </Suspense>
   );
 } 
