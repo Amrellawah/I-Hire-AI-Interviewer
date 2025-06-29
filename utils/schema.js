@@ -13,6 +13,16 @@ export const MockInterview = pgTable('mockInterview', {
   createdBy: varchar('createdBy').notNull(),
   createdAt: varchar('createdAt'),
   mockId: varchar('mockId').notNull(),
+  jobRes: varchar('jobRes'),
+  jobReq: varchar('jobReq'),
+  perfSkills: varchar('perfSkills'),
+  careerLevel: varchar('careerLevel'),
+  skills: varchar('skills'),
+  education: varchar('education'),
+  achievements: varchar('achievements'),
+  projects: varchar('projects'),
+  interviewType: varchar('interviewType'),
+  isHidden: boolean('isHidden').default(false),
 });
 
 export const UserAnswer = pgTable('userAnswer', {

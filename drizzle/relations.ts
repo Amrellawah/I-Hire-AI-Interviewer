@@ -1,16 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { jobDetails, jobRecommendation, cvAnalysis, userProfile } from "./schema";
-
-export const jobRecommendationRelations = relations(jobRecommendation, ({one}) => ({
-	jobDetail: one(jobDetails, {
-		fields: [jobRecommendation.jobDetailsId],
-		references: [jobDetails.id]
-	}),
-}));
-
-export const jobDetailsRelations = relations(jobDetails, ({many}) => ({
-	jobRecommendations: many(jobRecommendation),
-}));
+import { cvAnalysis, userProfile } from "./schema";
 
 export const userProfileRelations = relations(userProfile, ({one}) => ({
 	cvAnalysis: one(cvAnalysis, {

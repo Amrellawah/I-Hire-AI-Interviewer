@@ -24,10 +24,12 @@ import {
   Shield,
   Globe,
   Video,
-  PieChart
+  PieChart,
+  Settings
 } from 'lucide-react';
 import VideoCandidateList from './VideoCandidateList';
 import LabelAnalytics from './LabelAnalytics';
+import InterviewSettings from './InterviewSettings';
 import moment from 'moment';
 
 function VideoInterviewDetailContainer({ interviewDetail, candidateList }) {
@@ -149,7 +151,7 @@ function VideoInterviewDetailContainer({ interviewDetail, candidateList }) {
 
       {/* Enhanced Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 bg-[#f1e9ea] p-1 sm:p-2 rounded-2xl">
+        <TabsList className="grid w-full grid-cols-5 bg-[#f1e9ea] p-1 sm:p-2 rounded-2xl">
           <TabsTrigger value="overview" className="transition-all font-medium rounded-xl flex items-center justify-center h-8 sm:h-10 text-xs sm:text-sm
             data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#be3144] data-[state=active]:to-[#f05941] data-[state=active]:text-white data-[state=active]:shadow-none
             data-[state=inactive]:bg-transparent data-[state=inactive]:text-[#8e575f]">
@@ -177,6 +179,13 @@ function VideoInterviewDetailContainer({ interviewDetail, candidateList }) {
             <MessageCircleQuestion className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
             <span className="hidden sm:inline">Questions</span>
             <span className="sm:hidden">Questions</span>
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="transition-all font-medium rounded-xl flex items-center justify-center h-8 sm:h-10 text-xs sm:text-sm
+            data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#be3144] data-[state=active]:to-[#f05941] data-[state=active]:text-white data-[state=active]:shadow-none
+            data-[state=inactive]:bg-transparent data-[state=inactive]:text-[#8e575f]">
+            <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Settings</span>
+            <span className="sm:hidden">Settings</span>
           </TabsTrigger>
         </TabsList>
 
@@ -299,6 +308,13 @@ function VideoInterviewDetailContainer({ interviewDetail, candidateList }) {
                 </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-6">
+          <InterviewSettings 
+            mockId={interviewDetail?.mockId} 
+            isHidden={interviewDetail?.isHidden || false}
+          />
         </TabsContent>
       </Tabs>
     </div>

@@ -30,7 +30,7 @@ export async function GET(req) {
 
     // Get all available jobs from callInterview and MockInterview (not JobDetails)
     const allCallInterviews = await db.select().from(callInterview);
-    const allMockInterviews = await db.select().from(MockInterview);
+    const allMockInterviews = await db.select().from(MockInterview).where(eq(MockInterview.isHidden, false));
     const callJobsWithType = allCallInterviews.map(j => ({ ...j, _type: 'call', type: 'Call Interview', jobDescription: j.jobDescription }));
     const mockJobsWithType = allMockInterviews.map(j => ({ ...j, _type: 'mock', type: 'Video Interview', jobDescription: j.jobDesc }));
 

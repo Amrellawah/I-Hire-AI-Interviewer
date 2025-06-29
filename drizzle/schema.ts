@@ -59,6 +59,15 @@ export const mockInterview = pgTable("mockInterview", {
 	category: varchar({ length: 100 }),
 	id: integer().primaryKey().notNull(),
 	jobDetailsId: integer(),
+	jobRes: varchar(),
+	jobReq: varchar(),
+	perfSkills: varchar(),
+	careerLevel: varchar(),
+	skills: varchar(),
+	education: varchar(),
+	achievements: varchar(),
+	projects: varchar(),
+	interviewType: varchar(),
 });
 
 export const cvAnalysis = pgTable("CVAnalysis", {
@@ -130,7 +139,7 @@ export const userProfile = pgTable("UserProfile", {
 ]);
 
 export const userAnswer = pgTable("userAnswer", {
-	id: integer().primaryKey().generatedAlwaysAsIdentity({ name: ""userAnswer_id_seq"", startWith: 1, increment: 1, minValue: 1, maxValue: 2147483647 }),
+	id: integer().primaryKey().generatedAlwaysAsIdentity(),
 	mockId: varchar().notNull(),
 	question: varchar().notNull(),
 	correctAns: text(),
