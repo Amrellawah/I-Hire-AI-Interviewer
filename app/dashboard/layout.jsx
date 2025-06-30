@@ -46,7 +46,7 @@ function DashboardLayout({ children }) {
               }}
             >
               <div className="mx-auto p-4 md:p-6 lg:p-8 w-full max-w-[1800px]">
-                {pathname === '/dashboard' && <WelcomeContainer />}
+                {/* Removed duplicated WelcomeContainer */}
                 {children}
               </div>
             </main>

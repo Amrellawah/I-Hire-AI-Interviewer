@@ -50,9 +50,9 @@ function Header() {
 
             {/* Desktop navigation links - centered */}
             <nav className="hidden md:flex flex-1 justify-center items-center gap-8">
+              <Link href="/" className={`font-medium transition-colors duration-300 hover:text-[#be3144] ${path === '/' ? 'text-[#be3144]' : 'text-gray-700'}`}>Home</Link>
               <Link href="/features" className={`font-medium transition-colors duration-300 hover:text-[#be3144] ${path === '/features' ? 'text-[#be3144]' : 'text-gray-700'}`}>Features</Link>
-              <Link href="/about" className={`font-medium transition-colors duration-300 hover:text-[#be3144] ${path === '/about' ? 'text-[#be3144]' : 'text-gray-700'}`}>About</Link>
-              <Link href="/interviews" className={`font-medium transition-colors duration-300 hover:text-[#be3144] ${path === '/interviews' ? 'text-[#be3144]' : 'text-gray-700'}`}>Interviews</Link>
+              <Link href="/about" className={`font-medium transition-colors duration-300 hover:text-[#be3144] ${path === '/about' ? 'text-[#be3144]' : 'text-gray-700'}`}>About Us</Link>
             </nav>
 
             {/* Desktop: User Button always right; Mobile: Hamburger right, hide avatar */}
@@ -124,9 +124,9 @@ function Header() {
                 </div>
                 <div className="w-full border-b border-[#f1e9ea] my-4"></div>
                 <nav className="flex flex-col items-center gap-6 w-full mt-2">
+                  <Link href="/" className={`w-full text-center font-semibold text-base py-2 rounded-lg transition-all duration-200 hover:bg-[#f1e9ea] active:bg-[#f05941]/10 hover:text-[#be3144] focus:bg-[#f1e9ea] focus:text-[#be3144] ${path === '/' ? 'text-[#be3144] bg-[#f1e9ea]' : 'text-gray-700'}`}>Home</Link>
                   <Link href="/features" className={`w-full text-center font-semibold text-base py-2 rounded-lg transition-all duration-200 hover:bg-[#f1e9ea] active:bg-[#f05941]/10 hover:text-[#be3144] focus:bg-[#f1e9ea] focus:text-[#be3144] ${path === '/features' ? 'text-[#be3144] bg-[#f1e9ea]' : 'text-gray-700'}`}>Features</Link>
-                  <Link href="/about" className={`w-full text-center font-semibold text-base py-2 rounded-lg transition-all duration-200 hover:bg-[#f1e9ea] active:bg-[#f05941]/10 hover:text-[#be3144] focus:bg-[#f1e9ea] focus:text-[#be3144] ${path === '/about' ? 'text-[#be3144] bg-[#f1e9ea]' : 'text-gray-700'}`}>About</Link>
-                  <Link href="/interviews" className={`w-full text-center font-semibold text-base py-2 rounded-lg transition-all duration-200 hover:bg-[#f1e9ea] active:bg-[#f05941]/10 hover:text-[#be3144] focus:bg-[#f1e9ea] focus:text-[#be3144] ${path === '/interviews' ? 'text-[#be3144] bg-[#f1e9ea]' : 'text-gray-700'}`}>Interviews</Link>
+                  <Link href="/about" className={`w-full text-center font-semibold text-base py-2 rounded-lg transition-all duration-200 hover:bg-[#f1e9ea] active:bg-[#f05941]/10 hover:text-[#be3144] focus:bg-[#f1e9ea] focus:text-[#be3144] ${path === '/about' ? 'text-[#be3144] bg-[#f1e9ea]' : 'text-gray-700'}`}>About Us</Link>
                 </nav>
                 <div className="flex-1" />
                 {/* Footer */}

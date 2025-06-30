@@ -29,7 +29,7 @@ const InteractiveCard = ({
       setIsHovered(hovering);
       if (hovering && hoverEffect) {
         api.start({
-          transform: 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1.05)',
+          transform: 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1.01)',
           boxShadow: glowEffect 
             ? '0 20px 40px rgba(190, 49, 68, 0.3)' 
             : '0 20px 40px rgba(0, 0, 0, 0.15)'
@@ -46,11 +46,11 @@ const InteractiveCard = ({
         const rect = cardRef.current.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
-        const rotateX = (y - centerY) / 10;
-        const rotateY = (centerX - x) / 10;
+        const rotateX = (y - centerY) / 30;
+        const rotateY = (centerX - x) / 30;
         
         api.start({
-          transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.05)`,
+          transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.01)`,
         });
       }
     },
@@ -65,7 +65,7 @@ const InteractiveCard = ({
       setIsPressed(false);
       if (isHovered) {
         api.start({
-          transform: 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1.05)',
+          transform: 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1.01)',
           boxShadow: glowEffect 
             ? '0 20px 40px rgba(190, 49, 68, 0.3)' 
             : '0 20px 40px rgba(0, 0, 0, 0.15)'
