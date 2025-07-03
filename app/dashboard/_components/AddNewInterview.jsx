@@ -1,12 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -293,7 +286,7 @@ export default function AddNewInterview({ open, setOpen, jobDetails, jobDetailsI
       if (resp.length > 0) {
         resetForm();
         setOpen(false);
-        router.push(`/interview/${resp[0]?.mockId}`);
+        router.push(`/dashboard/interview-success?mockId=${resp[0]?.mockId}&jobPosition=${encodeURIComponent(jobPosition)}&interviewType=${interviewType}`);
       }
     } catch (error) {
       console.error("Error generating questions:", error);

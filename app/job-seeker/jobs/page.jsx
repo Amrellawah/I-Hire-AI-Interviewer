@@ -2,7 +2,7 @@
 import React, { useEffect, useState, Suspense, useRef } from 'react';
 import { db } from '@/utils/db';
 import { callInterview, MockInterview } from '@/utils/schema';
-import { desc } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Loader2, ArrowLeft, ChevronRight, Search, Filter, X, User, Pencil, Book, PhoneCall, Info, Handshake, Mail, Settings, LogOut } from 'lucide-react';
@@ -182,7 +182,7 @@ function JobsPageContent() {
     try {
       const callJobs = await db.select().from(callInterview).orderBy(desc(callInterview.createdAt));
       const callJobsWithType = callJobs.map(j => ({ ...j, _type: 'call', type: 'Call Interview', jobDescription: j.jobDescription }));
-      const mockJobs = await db.select().from(MockInterview).orderBy(desc(MockInterview.createdAt));
+      const mockJobs = await db.select().from(MockInterview).where(eq(MockInterview.isHidden, false)).orderBy(desc(MockInterview.createdAt));
       const mockJobsWithType = mockJobs.map(j => ({ ...j, _type: 'mock', type: 'Video Interview', jobDescription: j.jobDesc }));
       setAllJobs([...callJobsWithType, ...mockJobsWithType]);
     } catch (error) {

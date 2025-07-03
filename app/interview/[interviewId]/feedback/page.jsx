@@ -2,7 +2,7 @@
 import { db } from '@/utils/db';
 import { UserAnswer, MockInterview } from '@/utils/schema';
 import { eq, and } from 'drizzle-orm';
-import React, { useEffect, useState, use } from 'react';
+import React, { useEffect, useState, use, Suspense } from 'react';
 import { ChevronsUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -15,7 +15,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { calculateSessionProgress } from '@/utils/sessionUtils';
 
-function Feedback({ params }) {
+// Separate component that uses useSearchParams
+function FeedbackContent({ params }) {
   // Unwrap params Promise for Next.js 15 compatibility
   const resolvedParams = use(params);
   const interviewId = resolvedParams.interviewId;
@@ -342,4 +343,20 @@ function Feedback({ params }) {
   );
 }
 
-export default Feedback;
+// Loading fallback component
+function FeedbackLoading() {
+  return (
+    <div className="p-10 flex justify-center items-center h-64">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+    </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function Feedback({ params }) {
+  return (
+    <Suspense fallback={<FeedbackLoading />}>
+      <FeedbackContent params={params} />
+    </Suspense>
+  );
+}

@@ -17,7 +17,7 @@ import { ChevronRight, ChevronLeft, Menu, Home, Settings, User, Bell, HelpCircle
 import { UserButton, useUser } from "@clerk/nextjs"
 import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
 
@@ -270,6 +270,10 @@ export function AppSidebar({ isCollapsed, setIsCollapsed }) {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-[280px] p-0">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Navigation Menu</SheetTitle>
+              <SheetDescription>Main navigation menu for the dashboard.</SheetDescription>
+            </SheetHeader>
             <div
               ref={sidebarRef}
               className="h-full border-r border-[#e4d3d5] bg-white"

@@ -98,12 +98,24 @@ function InterviewLink({ job_id, formData }) {
                     </Button>
                 </Link>
                 
-                <Link href={'/create-interview'} className='w-full sm:w-auto'>
-                    <Button className='w-full h-12 gap-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600'>
-                        <Plus className='h-5 w-5' /> 
-                        Create New Job
-                    </Button>
-                </Link>
+                <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
+                    <Link href={'/dashboard/scheduled-interview'} className='w-full sm:w-auto'>
+                        <Button 
+                            variant={'outline'} 
+                            className='w-full h-12 gap-2 border-blue-300 text-blue-600 hover:bg-blue-50'
+                        >
+                            <Calendar className='h-5 w-5' /> 
+                            View Scheduled Jobs
+                        </Button>
+                    </Link>
+                    
+                    <Link href={'/create-interview'} className='w-full sm:w-auto'>
+                        <Button className='w-full h-12 gap-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600'>
+                            <Plus className='h-5 w-5' /> 
+                            Create New Job
+                        </Button>
+                    </Link>
+                </div>
             </div>
         </div>
     )

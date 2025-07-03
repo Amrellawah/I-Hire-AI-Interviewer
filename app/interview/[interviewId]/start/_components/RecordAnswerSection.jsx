@@ -502,7 +502,7 @@ function RecordAnswerSection({
       </div>
 
       {/* Follow-Up Section */}
-      {followUpAnalysis?.needsFollowUp && (
+      {/* {followUpAnalysis?.needsFollowUp && (
         <div className="w-full p-4 border rounded-lg bg-yellow-50 mb-4 animate-in fade-in">
           <h2 className="text-lg font-semibold mb-2 text-red-600">Follow-Up Needed</h2>
           <p className="text-sm mb-2"><strong>Reason:</strong> {followUpAnalysis.reason}</p>
@@ -518,7 +518,7 @@ function RecordAnswerSection({
             Submit Follow-Up
           </Button>
         </div>
-      )}
+      )} */}
 
       {/* Controls */}
       <div className="flex flex-wrap gap-4 justify-center mb-4">
@@ -633,7 +633,7 @@ function RecordAnswerSection({
       )}
 
       {/* Feedback */}
-      {feedback && (
+      {/* {feedback && (
         <div className="w-full max-w-2xl space-y-4 animate-in fade-in">
           <h3 className="text-lg font-semibold">Feedback:</h3>
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
@@ -671,7 +671,7 @@ function RecordAnswerSection({
             </div>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 }
