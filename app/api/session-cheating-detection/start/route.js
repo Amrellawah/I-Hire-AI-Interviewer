@@ -7,6 +7,8 @@ export async function POST(request) {
   try {
     const { sessionId, mockId, userEmail, detectionSettings } = await request.json();
 
+    console.log('Starting session cheating detection with:', { sessionId, mockId, userEmail });
+    
     if (!sessionId || !mockId) {
       return NextResponse.json(
         { error: 'Session ID and Mock ID are required' },
@@ -72,6 +74,8 @@ export async function POST(request) {
         })
         .returning();
 
+      console.log('Session created successfully:', { sessionId, mockId, sessionStartTime: sessionStartTime.toISOString() });
+      
       return NextResponse.json({
         success: true,
         message: 'Session started successfully',

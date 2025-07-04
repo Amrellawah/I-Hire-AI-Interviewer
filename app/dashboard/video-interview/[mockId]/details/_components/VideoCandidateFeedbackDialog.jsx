@@ -485,8 +485,10 @@ export default function VideoCandidateFeedbackDialog({ candidate }) {
                         {/* Detailed Evaluation */}
                         {renderDetailedEvaluation(answer)}
 
-                        {/* Cheating Detection Report */}
-                        <CheatingDetectionReport cheatingData={answer.cheatingDetection} />
+                        {/* Cheating Detection Report - Only show per-question data */}
+                        <CheatingDetectionReport 
+                          cheatingData={answer.cheatingDetection} 
+                        />
                       </div>
                     </CollapsibleContent>
                   </Collapsible>
@@ -494,6 +496,60 @@ export default function VideoCandidateFeedbackDialog({ candidate }) {
               })}
             </div>
           </div>
+
+          {/* Session-Level Cheating Detection Summary */}
+          {candidate.sessionCheatingData && (
+            <div className="bg-gradient-to-r from-red-50 to-orange-50 p-3 sm:p-4 rounded-lg border border-red-200">
+              <h3 className="text-sm sm:text-md font-semibold text-[#191011] mb-2 flex items-center gap-2">
+                <Shield className="h-4 w-4 text-red-600" />
+                Session-Level Cheating Detection Summary
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-xs sm:text-sm">
+                <div className="bg-white p-2 rounded border">
+                  <span className="text-[#8e575f]">Risk Score:</span>
+                  <p className={`font-bold text-lg ${
+                    (candidate.sessionCheatingData.sessionCheatingRiskScore || 0) < 30 ? 'text-green-600' :
+                    (candidate.sessionCheatingData.sessionCheatingRiskScore || 0) < 70 ? 'text-yellow-600' :
+                    'text-red-600'
+                  }`}>
+                    {Math.round(candidate.sessionCheatingData.sessionCheatingRiskScore || 0)}%
+                  </p>
+                </div>
+                <div className="bg-white p-2 rounded border">
+                  <span className="text-[#8e575f]">Severity Level:</span>
+                  <p className={`font-bold capitalize ${
+                    (candidate.sessionCheatingData.sessionCheatingSeverityLevel || 'low') === 'high' ? 'text-red-600' :
+                    (candidate.sessionCheatingData.sessionCheatingSeverityLevel || 'low') === 'medium' ? 'text-yellow-600' :
+                    'text-green-600'
+                  }`}>
+                    {candidate.sessionCheatingData.sessionCheatingSeverityLevel || 'low'}
+                  </p>
+                </div>
+                <div className="bg-white p-2 rounded border">
+                  <span className="text-[#8e575f]">Total Alerts:</span>
+                  <p className="font-bold text-lg text-red-600">
+                    {candidate.sessionCheatingData.sessionCheatingAlertsCount || 0}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 text-xs text-[#8e575f]">
+                Session Duration: {Math.floor((candidate.sessionCheatingData.sessionDuration || 0) / 60)}m {Math.floor((candidate.sessionCheatingData.sessionDuration || 0) % 60)}s
+              </div>
+            </div>
+          )}
+
+          {/* Detailed Session-Level Cheating Detection Report */}
+          {candidate.sessionCheatingData && (
+            <div className="bg-white border rounded-lg p-4">
+              <h3 className="text-sm sm:text-md font-semibold text-[#191011] mb-3 flex items-center gap-2">
+                <Shield className="h-4 w-4 text-red-600" />
+                Detailed Session Cheating Detection Report
+              </h3>
+              <CheatingDetectionReport 
+                sessionCheatingData={candidate.sessionCheatingData}
+              />
+            </div>
+          )}
 
           {/* Candidate Info */}
           <div className="bg-[#f1e9ea] p-3 sm:p-4 rounded-lg">

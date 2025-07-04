@@ -3,7 +3,9 @@ import React from 'react';
 export default function UserAvatar({ profilePhoto, userImageUrl, name, size = 40, className = '' }) {
   let showInitials = false;
   let effectivePhoto = null;
-  if (profilePhoto && profilePhoto !== "") {
+  
+  // Handle undefined, null, or empty profilePhoto
+  if (profilePhoto && profilePhoto !== "" && profilePhoto !== "null" && profilePhoto !== "undefined") {
     effectivePhoto = profilePhoto;
     showInitials = false;
   } else {
@@ -11,7 +13,7 @@ export default function UserAvatar({ profilePhoto, userImageUrl, name, size = 40
   }
 
   const getInitials = (name) => {
-    if (!name) return "U";
+    if (!name || name === "null" || name === "undefined") return "U";
     const parts = name.trim().split(" ");
     if (parts.length === 1) return parts[0][0].toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
@@ -28,7 +30,7 @@ export default function UserAvatar({ profilePhoto, userImageUrl, name, size = 40
           borderRadius: '50%',
           fontSize: size / 2,
         }}
-        title={name}
+        title={name || 'User'}
       >
         {initials}
       </div>
@@ -44,7 +46,12 @@ export default function UserAvatar({ profilePhoto, userImageUrl, name, size = 40
         height: size,
         borderRadius: '50%',
       }}
-      title={name}
+      title={name || 'User'}
+      onError={(e) => {
+        // Fallback to initials if image fails to load
+        e.target.style.display = 'none';
+        e.target.nextSibling.style.display = 'flex';
+      }}
     />
   );
 } 

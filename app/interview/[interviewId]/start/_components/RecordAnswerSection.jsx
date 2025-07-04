@@ -20,13 +20,18 @@ function RecordAnswerSection({
   interviewData, 
   interviewType = 'technical',
   sessionId,
+  userEmail,
   onAnswerSubmitted,
   currentAnswer
 }) {
   // State declarations
-  const [userAnswer, setUserAnswer] = useState('');
+  const [userAnswer, setUserAnswer] = useState(currentAnswer?.userAns || '');
   const [loading, setLoading] = useState(false);
-  const [feedback, setFeedback] = useState(null);
+  const [feedback, setFeedback] = useState(currentAnswer?.feedback ? {
+    feedback: currentAnswer.feedback,
+    rating: currentAnswer.rating,
+    suggestions: currentAnswer.suggestions ? currentAnswer.suggestions.split(', ') : []
+  } : null);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [followUpAnalysis, setFollowUpAnalysis] = useState(null);
@@ -36,14 +41,15 @@ function RecordAnswerSection({
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [detectedLanguage, setDetectedLanguage] = useState(null);
   const [languageMode, setLanguageMode] = useState('auto'); // 'auto', 'en', or 'ar'
-  const [retryCount, setRetryCount] = useState(0);
+  const [retryCount, setRetryCount] = useState(currentAnswer?.retryCount || 0);
   const [cheatingAlerts, setCheatingAlerts] = useState([]);
   const [cheatingRisk, setCheatingRisk] = useState(0);
-  const [showCheatingDetection, setShowCheatingDetection] = useState(true);
+  const [showCheatingDetection, setShowCheatingDetection] = useState(false);
   
   const webcamRef = useRef(null);
   const { user } = useUser();
   const MIN_ANSWER_LENGTH = 10;
+  const cheatingDetectionRef = useRef(null);
 
   // Initialize with existing answer if available
   useEffect(() => {
@@ -314,6 +320,66 @@ function RecordAnswerSection({
         onAnswerSubmitted(sessionId);
       }
 
+      // Save cheating detection data to database
+      const cheatingData = cheatingDetectionRef.current ? {
+        alerts: cheatingAlerts,
+        riskScore: cheatingRisk,
+        detectionHistory: cheatingDetectionRef.current.getDetectionHistory ? cheatingDetectionRef.current.getDetectionHistory() : [],
+        enhancedMetrics: cheatingDetectionRef.current.getEnhancedMetrics ? cheatingDetectionRef.current.getEnhancedMetrics() : {},
+        severityLevel: cheatingRisk > 70 ? 'high' : cheatingRisk > 30 ? 'medium' : 'low',
+        detectionSettings: {
+          detectionInterval: 2000,
+          confidenceThreshold: 0.75,
+          maxViolations: 5,
+          alertCooldown: 10000,
+          faceDetectionEnabled: true,
+          deviceDetectionEnabled: true,
+          movementAnalysisEnabled: true,
+          audioAnalysisEnabled: true,
+          tabSwitchingDetectionEnabled: true,
+          typingDetectionEnabled: true
+        }
+      } : {
+        alerts: cheatingAlerts,
+        riskScore: cheatingRisk,
+        detectionHistory: [],
+        enhancedMetrics: {},
+        severityLevel: cheatingRisk > 70 ? 'high' : cheatingRisk > 30 ? 'medium' : 'low',
+        detectionSettings: {}
+      };
+
+      await saveCheatingDetectionData(cheatingData);
+
+      // If this is the last question, also trigger a final session save
+      const totalQuestions = mockInterviewQuestion?.length || 0;
+      if (activeQuestionIndex === totalQuestions - 1) {
+        try {
+          const finalResponse = await fetch('/api/session-cheating-detection/end', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              sessionId: sessionId,
+              mockId: sessionId.split('_')[0],
+              finalDetectionData: {
+                sessionCompleted: true,
+                totalQuestions: totalQuestions,
+                answeredQuestions: 1, // This will be updated by the end API
+                skippedQuestions: 0,
+                sessionDuration: Date.now() - (sessionId ? parseInt(sessionId.split('_')[1]) : Date.now())
+              }
+            })
+          });
+
+          if (finalResponse.ok) {
+            console.log('Final session cheating detection data saved');
+          }
+        } catch (error) {
+          console.error('Error saving final session data:', error);
+        }
+      }
+
       toast.success(newRetryCount > 1 ? 'Answer updated successfully' : 'Answer and feedback saved successfully');
     } catch (error) {
       console.error("Submission failed", error);
@@ -375,6 +441,107 @@ function RecordAnswerSection({
     setCheatingRisk(risk);
   };
 
+  // Save cheating detection data to database - now using session-level API
+  const saveCheatingDetectionData = async (cheatingData) => {
+    try {
+      // Extract mockId from sessionId (format: email_mockId_timestamp_randomId)
+      const sessionParts = sessionId.split('_');
+      const mockId = sessionParts[1]; // mockId is the second part
+      
+      console.log('Saving session-level cheating detection data:', {
+        sessionId,
+        mockId: mockId,
+        sessionParts: sessionParts,
+        riskScore: cheatingData.riskScore || cheatingRisk,
+        alertsCount: cheatingData.alerts?.length || cheatingAlerts.length,
+        detectionHistoryLength: cheatingData.detectionHistory?.length || 0
+      });
+
+      // First, try to create the session if it doesn't exist
+      try {
+        const createResponse = await fetch('/api/session-cheating-detection/start', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            sessionId: sessionId,
+            mockId: mockId,
+            userEmail: userEmail,
+            detectionSettings: {
+              detectionInterval: 2000,
+              confidenceThreshold: 0.75,
+              maxViolations: 5,
+              alertCooldown: 10000,
+              faceDetectionEnabled: true,
+              deviceDetectionEnabled: true,
+              movementAnalysisEnabled: true,
+              audioAnalysisEnabled: true,
+              tabSwitchingDetectionEnabled: true,
+              typingDetectionEnabled: true
+            }
+          })
+        });
+
+        if (createResponse.ok) {
+          console.log('Session created/updated successfully');
+        } else {
+          console.warn('Session creation failed, but continuing with update');
+        }
+      } catch (error) {
+        console.warn('Session creation attempt failed:', error);
+      }
+
+      const requestBody = {
+        sessionId: sessionId,
+        mockId: mockId,
+        detectionData: {
+          riskScore: cheatingData.riskScore || cheatingRisk,
+          alerts: cheatingData.alerts || cheatingAlerts,
+          detectionHistory: cheatingData.detectionHistory || [],
+          enhancedMetrics: cheatingData.enhancedMetrics || {},
+          severityLevel: cheatingData.severityLevel || 'low',
+          detectionSettings: cheatingData.detectionSettings || {}
+        },
+        riskScore: cheatingData.riskScore || cheatingRisk,
+        alerts: cheatingData.alerts || cheatingAlerts,
+        enhancedMetrics: cheatingData.enhancedMetrics || {},
+        detectionHistory: cheatingData.detectionHistory || []
+      };
+
+      console.log('Request body:', JSON.stringify(requestBody, null, 2));
+
+      const response = await fetch('/api/session-cheating-detection/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response body:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Session-level cheating detection data saved successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Error saving session-level cheating detection data:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      // Don't throw error to avoid breaking the main save operation
+    }
+  };
+
   return (
     <div className="flex flex-col items-center justify-center p-6 bg-white rounded-2xl shadow-lg border max-w-2xl mx-auto">
       {/* Session Info */}
@@ -421,44 +588,53 @@ function RecordAnswerSection({
       <div className="w-full mb-4">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-blue-600" />
-            <h3 className="font-semibold text-sm">Cheating Detection</h3>
-            <span className="text-xs text-gray-500">
+            <Shield className="h-5 w-5 text-green-600" />
+            <h3 className="font-semibold text-sm text-green-700">Enhanced Cheating Detection</h3>
+            <span className="text-xs text-green-600">
               (Recording: {isRecording ? 'Yes' : 'No'}, Risk: {Math.round(cheatingRisk)}%)
             </span>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowCheatingDetection(!showCheatingDetection)}
-            className="text-xs"
-          >
-            {showCheatingDetection ? 'Hide' : 'Show'} Details
-          </Button>
-        </div>
-        
-        {/* Always show basic detection status */}
-        <div className="p-3 bg-gray-50 rounded-lg mb-2">
-          <div className="flex items-center justify-between text-sm">
-            <span>Status: {isRecording ? 'Monitoring' : 'Waiting for recording'}</span>
-            <span>Alerts: {cheatingAlerts.length}</span>
+          <div className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+            Auto-Enabled
           </div>
         </div>
         
-        {showCheatingDetection && (
-          <CheatingDetection
-            webcamRef={webcamRef}
-            isRecording={isRecording}
-            onCheatingDetected={handleCheatingDetected}
-            onCheatingResolved={handleCheatingResolved}
-            interviewSettings={{
-              detectionInterval: 3000,
-              confidenceThreshold: 0.7,
-              maxViolations: 3,
-              alertCooldown: 15000
-            }}
-          />
-        )}
+        {/* Always show basic detection status */}
+        <div className="p-3 bg-green-50 rounded-lg mb-2 border border-green-200">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-green-600" />
+              <span className="text-green-700 font-medium">
+                {isRecording ? 'Monitoring' : 'Ready to Monitor'}
+              </span>
+            </div>
+            <span className="text-green-600">Alerts: {cheatingAlerts.length}</span>
+          </div>
+        </div>
+        
+        {/* Always show cheating detection details */}
+        <CheatingDetection
+          webcamRef={webcamRef}
+          isRecording={isRecording}
+          onCheatingDetected={handleCheatingDetected}
+          onCheatingResolved={handleCheatingResolved}
+          onCheatingRiskUpdate={handleCheatingRiskUpdate}
+          sessionId={sessionId}
+          questionIndex={activeQuestionIndex}
+          interviewSettings={{
+            detectionInterval: 2000, // More frequent detection
+            confidenceThreshold: 0.75, // Higher confidence
+            maxViolations: 5, // More violations before high risk
+            alertCooldown: 10000, // Shorter cooldown
+            faceDetectionEnabled: true,
+            deviceDetectionEnabled: true,
+            movementAnalysisEnabled: true,
+            audioAnalysisEnabled: true,
+            tabSwitchingDetectionEnabled: true,
+            typingDetectionEnabled: true
+          }}
+          ref={cheatingDetectionRef}
+        />
         
         {/* Quick Risk Indicator */}
         {!showCheatingDetection && cheatingRisk > 0 && (

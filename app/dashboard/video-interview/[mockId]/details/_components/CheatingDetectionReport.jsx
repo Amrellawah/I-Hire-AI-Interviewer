@@ -5,30 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-const CheatingDetectionReport = ({ cheatingData }) => {
-  if (!cheatingData) {
-    return (
-      <div className="p-4 bg-gray-50 rounded-lg">
-        <div className="flex items-center gap-2 mb-2">
-          <Shield className="h-4 w-4 text-gray-400" />
-          <span className="text-sm font-medium text-gray-500">Enhanced Cheating Detection</span>
-        </div>
-        <p className="text-xs text-gray-400">No cheating detection data available</p>
-      </div>
-    );
-  }
-
-  const data = typeof cheatingData === 'string' ? JSON.parse(cheatingData) : cheatingData;
-  const { 
-    riskScore = 0, 
-    alerts = [], 
-    detectionHistory = [], 
-    analytics = {},
-    enhancedMetrics = {},
-    severityLevel = 'low',
-    version = '1.0'
-  } = data;
-
+const CheatingDetectionReport = ({ cheatingData, sessionCheatingData }) => {
+  // Helper functions - define these first
   const getRiskColor = (risk) => {
     if (risk < 30) return 'text-green-600 bg-green-100';
     if (risk < 70) return 'text-yellow-600 bg-yellow-100';
@@ -92,6 +70,254 @@ const CheatingDetectionReport = ({ cheatingData }) => {
     const remainingSeconds = seconds % 60;
     return `${minutes}m ${remainingSeconds}s`;
   };
+
+  // Handle session-level cheating detection data
+  if (sessionCheatingData) {
+    const sessionData = typeof sessionCheatingData === 'string' ? JSON.parse(sessionCheatingData) : sessionCheatingData;
+    
+    return (
+      <div className="space-y-4">
+        {/* Session-Level Cheating Detection Summary */}
+        <div className="p-4 bg-white border rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-blue-600" />
+              <h3 className="font-semibold text-sm">Session-Level Cheating Detection</h3>
+              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                Session Data
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge className={getRiskColor(sessionData.sessionCheatingRiskScore || 0)}>
+                {getRiskLevel(sessionData.sessionCheatingRiskScore || 0)} Risk
+              </Badge>
+              <Badge className={getSeverityColor(sessionData.sessionCheatingSeverityLevel || 'low')}>
+                {(sessionData.sessionCheatingSeverityLevel || 'low').toUpperCase()} Severity
+              </Badge>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-gray-600">
+              <span>Session Risk Score</span>
+              <span>{Math.round(sessionData.sessionCheatingRiskScore || 0)}%</span>
+            </div>
+            <Progress value={sessionData.sessionCheatingRiskScore || 0} className="h-2" />
+            
+            <div className="flex justify-between text-xs text-gray-600 mt-2">
+              <span>Total Alerts</span>
+              <span>{sessionData.sessionCheatingAlertsCount || 0}</span>
+            </div>
+            
+            <div className="flex justify-between text-xs text-gray-600">
+              <span>Session Duration</span>
+              <span>{formatDuration(sessionData.sessionDuration || 0)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Session Violations */}
+        {sessionData.sessionCheatingViolations && (
+          <div className="p-4 bg-white border rounded-lg">
+            <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              Session Violations
+            </h4>
+            <div className="grid grid-cols-2 gap-3">
+              {Object.entries(sessionData.sessionCheatingViolations).map(([violationType, count]) => (
+                <div key={violationType} className="p-2 bg-red-50 rounded border border-red-200">
+                  <div className="text-xs font-medium text-red-700 capitalize">
+                    {violationType.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                  </div>
+                  <div className="text-sm font-bold text-red-800">
+                    {count} violations
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Session Devices Detected */}
+        {sessionData.sessionCheatingDevices && Object.keys(sessionData.sessionCheatingDevices).length > 0 && (
+          <div className="p-4 bg-white border rounded-lg">
+            <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+              <Monitor className="h-4 w-4 text-purple-600" />
+              Devices Detected
+            </h4>
+            <div className="grid grid-cols-2 gap-3">
+              {Object.entries(sessionData.sessionCheatingDevices).map(([deviceType, count]) => (
+                <div key={deviceType} className="p-2 bg-purple-50 rounded border border-purple-200">
+                  <div className="text-xs font-medium text-purple-700 capitalize">
+                    {deviceType}
+                  </div>
+                  <div className="text-sm font-bold text-purple-800">
+                    {count} detections
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Session Movement Patterns */}
+        {sessionData.sessionCheatingMovementPatterns && Object.keys(sessionData.sessionCheatingMovementPatterns).length > 0 && (
+          <div className="p-4 bg-white border rounded-lg">
+            <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+              <Activity className="h-4 w-4 text-blue-600" />
+              Movement Patterns
+            </h4>
+            <div className="grid grid-cols-2 gap-3">
+              {Object.entries(sessionData.sessionCheatingMovementPatterns).map(([pattern, count]) => (
+                <div key={pattern} className="p-2 bg-blue-50 rounded border border-blue-200">
+                  <div className="text-xs font-medium text-blue-700 capitalize">
+                    {pattern}
+                  </div>
+                  <div className="text-sm font-bold text-blue-800">
+                    {count} occurrences
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Session Alerts */}
+        {sessionData.sessionAlerts && sessionData.sessionAlerts.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="font-semibold text-sm flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+              Session Alerts ({sessionData.sessionAlerts.length})
+            </h4>
+            {sessionData.sessionAlerts.slice(-5).map((alert, index) => (
+              <Alert key={index} className={`border ${getAlertColor(alert.type)}`}>
+                <div className="flex items-start gap-2">
+                  {getAlertIcon(alert.type)}
+                  <AlertDescription className="text-xs">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium capitalize">
+                        {alert.type.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {alert.severity && (
+                          <Badge variant="outline" className={`text-xs ${getSeverityColor(alert.severity)}`}>
+                            {alert.severity}
+                          </Badge>
+                        )}
+                        <span className="text-xs opacity-70">
+                          {new Date(alert.timestamp).toLocaleTimeString()}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs opacity-80">{alert.message}</p>
+                    {alert.confidence && (
+                      <div className="text-xs opacity-60 mt-1">
+                        Confidence: {Math.round(alert.confidence * 100)}%
+                      </div>
+                    )}
+                    {alert.riskScore && (
+                      <div className="text-xs opacity-60">
+                        Risk Score: {Math.round(alert.riskScore)}%
+                      </div>
+                    )}
+                  </AlertDescription>
+                </div>
+              </Alert>
+            ))}
+          </div>
+        )}
+
+        {/* Session Detection History */}
+        {sessionData.sessionDetectionHistory && sessionData.sessionDetectionHistory.length > 0 && (
+          <div className="p-4 bg-white border rounded-lg">
+            <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-blue-600" />
+              Session Detection History
+            </h4>
+            <div className="space-y-2">
+              {sessionData.sessionDetectionHistory.slice(-10).map((entry, index) => (
+                <div key={index} className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <div className="flex justify-between text-xs text-gray-600 mb-1">
+                      <span>Detection {index + 1}</span>
+                      <span>{Math.round(entry.riskScore || 0)}%</span>
+                    </div>
+                    <Progress 
+                      value={entry.riskScore || 0} 
+                      className="h-1.5" 
+                      style={{
+                        backgroundColor: (entry.riskScore || 0) < 30 ? '#dcfce7' : 
+                                       (entry.riskScore || 0) < 70 ? '#fef3c7' : '#fee2e2'
+                      }}
+                    />
+                    {entry.metrics && (
+                      <div className="text-xs text-gray-400 mt-1">
+                        {entry.metrics.deviceType && `Device: ${entry.metrics.deviceType}`}
+                        {entry.metrics.movementPattern && entry.metrics.movementPattern !== 'normal' && 
+                          ` | Pattern: ${entry.metrics.movementPattern}`}
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-xs text-gray-400">
+                    {new Date(entry.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Session Enhanced Metrics */}
+        {sessionData.sessionEnhancedMetrics && (
+          <div className="p-4 bg-white border rounded-lg">
+            <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+              <Activity className="h-4 w-4 text-blue-600" />
+              Session Enhanced Metrics
+            </h4>
+            <div className="grid grid-cols-2 gap-3">
+              {Object.entries(sessionData.sessionEnhancedMetrics).map(([key, value]) => {
+                if (value === null || value === undefined) return null;
+                
+                let displayValue = value;
+                if (typeof value === 'number' && key.includes('Quality')) {
+                  displayValue = `${Math.round(value)}%`;
+                } else if (typeof value === 'number' && key.includes('Level')) {
+                  displayValue = `${Math.round(value * 100)}%`;
+                } else if (typeof value === 'number' && key.includes('Stability')) {
+                  displayValue = `${Math.round(value)}%`;
+                } else if (typeof value === 'string') {
+                  displayValue = value.charAt(0).toUpperCase() + value.slice(1);
+                }
+                
+                return (
+                  <div key={key} className="text-xs">
+                    <span className="text-gray-600">{key.replace(/([A-Z])/g, ' $1').toLowerCase()}:</span>
+                    <span className="ml-1 font-medium">{displayValue}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Handle legacy per-question cheating detection data
+  if (!cheatingData) {
+    return null; // Don't show anything when there's no data
+  }
+
+  const data = typeof cheatingData === 'string' ? JSON.parse(cheatingData) : cheatingData;
+  const { 
+    riskScore = 0, 
+    alerts = [], 
+    detectionHistory = [], 
+    analytics = {},
+    enhancedMetrics = {},
+    severityLevel = 'low',
+    version = '1.0'
+  } = data;
 
   return (
     <div className="space-y-4">

@@ -18,7 +18,9 @@ import {
   Users,
   RefreshCw,
   SkipForward,
-  Play
+  Play,
+  Shield,
+  AlertTriangle
 } from 'lucide-react';
 
 function VideoCandidateList({ candidateList }) {
@@ -213,6 +215,30 @@ function VideoCandidateList({ candidateList }) {
                           </span>
                         )}
                       </div>
+                      
+                      {/* Cheating Detection Indicator */}
+                      {candidate.sessionCheatingData && (
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className={`text-xs flex items-center gap-1 ${
+                            (candidate.sessionCheatingData.sessionCheatingRiskScore || 0) < 30 
+                              ? 'border-green-200 text-green-700 bg-green-50' 
+                              : (candidate.sessionCheatingData.sessionCheatingRiskScore || 0) < 70 
+                              ? 'border-yellow-200 text-yellow-700 bg-yellow-50'
+                              : 'border-red-200 text-red-700 bg-red-50'
+                          }`}>
+                            <Shield className="h-3 w-3" />
+                            Cheating Detection
+                            {candidate.sessionCheatingData.sessionCheatingAlertsCount > 0 && (
+                              <span className="ml-1 px-1 py-0.5 bg-red-100 text-red-700 rounded-full text-xs">
+                                {candidate.sessionCheatingData.sessionCheatingAlertsCount} alerts
+                              </span>
+                            )}
+                          </Badge>
+                          <span className="text-xs text-gray-500">
+                            Risk: {Math.round(candidate.sessionCheatingData.sessionCheatingRiskScore || 0)}%
+                          </span>
+                        </div>
+                      )}
                       
                       {/* Enhanced Action Button */}
                       <div className="pt-2 sm:pt-3">

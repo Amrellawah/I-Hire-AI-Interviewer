@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import VideoInterviewDetailContainer from './_components/VideoInterviewDetailContainer';
 import { eq, and } from 'drizzle-orm';
-import { MockInterview, UserAnswer } from '@/utils/schema';
+import { MockInterview, UserAnswer, SessionCheatingDetection } from '@/utils/schema';
 import VideoCandidateList from './_components/VideoCandidateList';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
@@ -72,6 +72,18 @@ function VideoInterviewDetail() {
 
     const GetCandidateList = async () => {
         try {
+            // Get session-level cheating detection data
+            const sessionCheatingData = await db
+                .select()
+                .from(SessionCheatingDetection)
+                .where(eq(SessionCheatingDetection.mockId, mockId));
+
+            // Create a map of session cheating data for quick lookup
+            const sessionCheatingMap = sessionCheatingData.reduce((acc, session) => {
+                acc[session.sessionId] = session;
+                return acc;
+            }, {});
+
             const result = await db
                 .select({
                     id: UserAnswer.id,
@@ -101,12 +113,7 @@ function VideoInterviewDetail() {
                     isSkipped: UserAnswer.isSkipped,
                     retryCount: UserAnswer.retryCount,
                     lastAttemptAt: UserAnswer.lastAttemptAt,
-                    updatedAt: UserAnswer.updatedAt,
-                    cheatingDetection: UserAnswer.cheatingDetection,
-                    cheatingRiskScore: UserAnswer.cheatingRiskScore,
-                    cheatingAlertsCount: UserAnswer.cheatingAlertsCount,
-                    cheatingDetectionEnabled: UserAnswer.cheatingDetectionEnabled,
-                    cheatingDetectionSettings: UserAnswer.cheatingDetectionSettings
+                    updatedAt: UserAnswer.updatedAt
                 })
                 .from(UserAnswer)
                 .where(eq(UserAnswer.mockIdRef, mockId));
@@ -128,7 +135,9 @@ function VideoInterviewDetail() {
                             answeredQuestions: 0,
                             skippedQuestions: 0,
                             averageRating: 0,
-                            totalRetries: 0
+                            totalRetries: 0,
+                            // Session-level cheating detection data
+                            sessionCheatingData: sessionCheatingMap[sessionKey] || null
                         };
                     }
                     

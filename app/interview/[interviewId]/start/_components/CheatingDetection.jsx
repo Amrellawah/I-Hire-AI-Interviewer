@@ -1,17 +1,20 @@
 "use client";
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { AlertTriangle, Eye, EyeOff, Users, Monitor, Shield, AlertCircle, Volume2, VolumeX, Clock, Activity } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 
-const CheatingDetection = ({ 
+const CheatingDetection = forwardRef(({ 
   webcamRef, 
   isRecording, 
   onCheatingDetected,
   onCheatingResolved,
+  onCheatingRiskUpdate,
+  sessionId,
+  questionIndex,
   interviewSettings = {} 
-}) => {
+}, ref) => {
   const [detectionResults, setDetectionResults] = useState({
     faceDetection: { detected: false, confidence: 0, violations: 0, lastSeen: Date.now(), faceQuality: 0 },
     eyeTracking: { lookingAway: false, confidence: 0, violations: 0, gazeHistory: [] },
@@ -23,7 +26,7 @@ const CheatingDetection = ({
     typingDetection: { detected: false, confidence: 0, violations: 0, typingPattern: 'normal', typingSpeed: 0, suspiciousEvents: [] }
   });
 
-  const [isActive, setIsActive] = useState(false);
+  const [isActive, setIsActive] = useState(true); // Automatically enabled
   const [overallRisk, setOverallRisk] = useState(0);
   const [alerts, setAlerts] = useState([]);
   const [detectionHistory, setDetectionHistory] = useState([]);
@@ -43,7 +46,7 @@ const CheatingDetection = ({
   const typingStartTimeRef = useRef(null);
   const headMovementHistoryRef = useRef([]);
 
-  // Enhanced detection settings with adaptive thresholds
+  // Enhanced detection settings with adaptive thresholds - optimized for automatic detection
   const settings = {
     detectionInterval: interviewSettings.detectionInterval || 2000,
     confidenceThreshold: interviewSettings.confidenceThreshold || 0.75,
@@ -55,6 +58,13 @@ const CheatingDetection = ({
     audioThreshold: 0.6, // Audio analysis threshold
     tabSwitchThreshold: 3000, // 3 seconds between tab switches
     typingThreshold: 2000, // 2 seconds of continuous typing
+    // Enhanced settings for automatic detection
+    faceDetectionEnabled: true,
+    deviceDetectionEnabled: true,
+    movementAnalysisEnabled: true,
+    audioAnalysisEnabled: true,
+    tabSwitchingDetectionEnabled: true,
+    typingDetectionEnabled: true,
     ...interviewSettings
   };
 
@@ -1280,6 +1290,73 @@ const CheatingDetection = ({
     return currentViolations;
   }, []);
 
+  // Periodic save function - now using session-level API
+  const saveDetectionDataPeriodically = useCallback(async () => {
+    if (!isActive || detectionHistory.length === 0) return;
+
+    try {
+      const response = await fetch('/api/session-cheating-detection/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId,
+          mockId: sessionId.split('_')[1], // Extract mockId from sessionId (second part)
+          detectionData: {
+            riskScore: overallRisk,
+            alerts: alerts,
+            detectionHistory: detectionHistory.slice(-20), // Last 20 entries
+            enhancedMetrics: {
+              faceQuality: detectionResults.faceDetection.faceQuality,
+              movementPattern: detectionResults.headMovement.headMovementPattern,
+              noiseLevel: detectionResults.audioAnalysis.noiseLevel,
+              deviceType: detectionResults.phoneDetection.deviceType,
+              gazeStability: detectionResults.eyeTracking.confidence,
+              responseTime: 0,
+              audioAvailable: detectionResults.audioAnalysis.audioAvailable
+            },
+            severityLevel: overallRisk > 70 ? 'high' : overallRisk > 30 ? 'medium' : 'low',
+            detectionSettings: settings
+          },
+          riskScore: overallRisk,
+          alerts: alerts,
+          enhancedMetrics: {
+            faceQuality: detectionResults.faceDetection.faceQuality,
+            movementPattern: detectionResults.headMovement.headMovementPattern,
+            noiseLevel: detectionResults.audioAnalysis.noiseLevel,
+            deviceType: detectionResults.phoneDetection.deviceType,
+            gazeStability: detectionResults.eyeTracking.confidence,
+            responseTime: 0,
+            audioAvailable: detectionResults.audioAnalysis.audioAvailable
+          },
+          detectionHistory: detectionHistory.slice(-20)
+        })
+      });
+
+      if (response.ok) {
+        console.log('Session-level cheating detection data updated');
+      }
+    } catch (error) {
+      console.error('Error updating session cheating detection data:', error);
+    }
+  }, [isActive, detectionHistory, overallRisk, alerts, detectionResults, settings, sessionId]);
+
+  // Set up periodic saving
+  useEffect(() => {
+    if (isActive) {
+      const saveInterval = setInterval(saveDetectionDataPeriodically, 30000); // Save every 30 seconds
+      return () => clearInterval(saveInterval);
+    }
+  }, [isActive, saveDetectionDataPeriodically]);
+
+  // Call risk update callback when risk changes
+  useEffect(() => {
+    if (onCheatingRiskUpdate) {
+      onCheatingRiskUpdate(overallRisk);
+    }
+  }, [overallRisk, onCheatingRiskUpdate]);
+
   const getRiskColor = (risk) => {
     if (risk < 30) return 'text-green-600 bg-green-100';
     if (risk < 70) return 'text-yellow-600 bg-yellow-100';
@@ -1301,16 +1378,38 @@ const CheatingDetection = ({
     }
   };
 
+  useImperativeHandle(ref, () => ({
+    getDetectionHistory: () => detectionHistory,
+    getDetectionResults: () => detectionResults,
+    getOverallRisk: () => overallRisk,
+    getAlerts: () => alerts,
+    getEnhancedMetrics: () => ({
+      faceQuality: detectionResults.faceDetection.faceQuality,
+      movementPattern: detectionResults.headMovement.headMovementPattern,
+      noiseLevel: detectionResults.audioAnalysis.noiseLevel,
+      deviceType: detectionResults.phoneDetection.deviceType,
+      gazeStability: detectionResults.eyeTracking.confidence,
+      responseTime: 0, // Could be calculated from detection timing
+      audioAvailable: detectionResults.audioAnalysis.audioAvailable
+    }),
+    getRiskColor: (risk) => getRiskColor(risk),
+    getRiskLevel: (risk) => getRiskLevel(risk),
+    getSeverityColor: (severity) => getSeverityColor(severity)
+  }));
+
   return (
     <div className="space-y-4">
       {/* Enhanced Detection Status */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 rounded-lg gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-green-50 rounded-lg gap-3 border border-green-200">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
           <div className="flex items-center gap-2">
-            <Shield className={`h-5 w-5 ${isActive ? 'text-green-600' : 'text-gray-400'}`} />
-            <span className="font-medium text-sm">
-              Enhanced Cheating Detection: {isActive ? 'Active' : 'Inactive'}
+            <Shield className="h-5 w-5 text-green-600" />
+            <span className="font-medium text-sm text-green-700">
+              Enhanced Cheating Detection: Active
             </span>
+            <div className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+              Auto-Enabled
+            </div>
           </div>
           {/* Status indicators - responsive layout */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -1347,16 +1446,9 @@ const CheatingDetection = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsActive(!isActive)}
-            className={`px-3 py-1 rounded text-xs font-medium ${
-              isActive 
-                ? 'bg-red-100 text-red-700 hover:bg-red-200' 
-                : 'bg-green-100 text-green-700 hover:bg-green-200'
-            }`}
-          >
-            {isActive ? 'Disable' : 'Enable'}
-          </button>
+          <div className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">
+            Always Active
+          </div>
         </div>
       </div>
 
@@ -1508,6 +1600,6 @@ const CheatingDetection = ({
       />
     </div>
   );
-};
+});
 
 export default CheatingDetection; 

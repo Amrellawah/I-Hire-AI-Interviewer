@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/utils/db';
-import { UserAnswer } from '@/utils/schema';
+import { SessionCheatingDetection } from '@/utils/schema';
 import { eq, gte, lte, and } from 'drizzle-orm';
 
 export async function GET(request) {
@@ -15,34 +15,45 @@ export async function GET(request) {
     const conditions = [];
     
     if (sessionId) {
-      conditions.push(eq(UserAnswer.sessionId, sessionId));
+      conditions.push(eq(SessionCheatingDetection.sessionId, sessionId));
     }
     
     if (userId) {
-      conditions.push(eq(UserAnswer.userId, userId));
+      conditions.push(eq(SessionCheatingDetection.userEmail, userId));
     }
     
     if (startDate && endDate) {
       conditions.push(
         and(
-          gte(UserAnswer.createdAt, new Date(startDate)),
-          lte(UserAnswer.createdAt, new Date(endDate))
+          gte(SessionCheatingDetection.createdAt, new Date(startDate)),
+          lte(SessionCheatingDetection.createdAt, new Date(endDate))
         )
       );
     }
 
-    // Get answers with cheating detection data
-    const answers = await db
+    // Get session-level cheating detection data
+    const sessions = await db
       .select({
-        id: UserAnswer.id,
-        sessionId: UserAnswer.sessionId,
-        questionIndex: UserAnswer.questionIndex,
-        cheatingDetection: UserAnswer.cheatingDetection,
-        cheatingRiskScore: UserAnswer.cheatingRiskScore,
-        cheatingAlertsCount: UserAnswer.cheatingAlertsCount,
-        createdAt: UserAnswer.createdAt
+        id: SessionCheatingDetection.id,
+        sessionId: SessionCheatingDetection.sessionId,
+        mockId: SessionCheatingDetection.mockId,
+        userEmail: SessionCheatingDetection.userEmail,
+        sessionCheatingDetection: SessionCheatingDetection.sessionCheatingDetection,
+        sessionCheatingRiskScore: SessionCheatingDetection.sessionCheatingRiskScore,
+        sessionCheatingAlertsCount: SessionCheatingDetection.sessionCheatingAlertsCount,
+        sessionCheatingSeverityLevel: SessionCheatingDetection.sessionCheatingSeverityLevel,
+        sessionCheatingViolations: SessionCheatingDetection.sessionCheatingViolations,
+        sessionCheatingDevices: SessionCheatingDetection.sessionCheatingDevices,
+        sessionCheatingMovementPatterns: SessionCheatingDetection.sessionCheatingMovementPatterns,
+        sessionDetectionHistory: SessionCheatingDetection.sessionDetectionHistory,
+        sessionAlerts: SessionCheatingDetection.sessionAlerts,
+        sessionEnhancedMetrics: SessionCheatingDetection.sessionEnhancedMetrics,
+        sessionStartTime: SessionCheatingDetection.sessionStartTime,
+        sessionEndTime: SessionCheatingDetection.sessionEndTime,
+        sessionDuration: SessionCheatingDetection.sessionDuration,
+        createdAt: SessionCheatingDetection.createdAt
       })
-      .from(UserAnswer)
+      .from(SessionCheatingDetection)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
 
     // Process cheating detection data
@@ -88,102 +99,107 @@ export async function GET(request) {
     let totalAlerts = 0;
     let totalSessionDuration = 0;
 
-    answers.forEach(answer => {
-      if (answer.cheatingDetection) {
-        const detectionData = typeof answer.cheatingDetection === 'string' 
-          ? JSON.parse(answer.cheatingDetection) 
-          : answer.cheatingDetection;
+    sessions.forEach(session => {
+      if (session.sessionCheatingDetection) {
+        const detectionData = typeof session.sessionCheatingDetection === 'string' 
+          ? JSON.parse(session.sessionCheatingDetection) 
+          : session.sessionCheatingDetection;
 
         // Session tracking
-        if (!sessionData.has(answer.sessionId)) {
-          sessionData.set(answer.sessionId, {
-            sessionId: answer.sessionId,
-            questions: 0,
-            totalRisk: 0,
-            alerts: 0,
+        if (!sessionData.has(session.sessionId)) {
+          sessionData.set(session.sessionId, {
+            sessionId: session.sessionId,
+            mockId: session.mockId,
+            userEmail: session.userEmail,
+            totalRisk: session.sessionCheatingRiskScore || 0,
+            alerts: session.sessionCheatingAlertsCount || 0,
+            severityLevel: session.sessionCheatingSeverityLevel || 'low',
             violations: new Set(),
             devices: new Set(),
             movementPatterns: new Set(),
-            startTime: null,
-            endTime: null
+            startTime: session.sessionStartTime,
+            endTime: session.sessionEndTime,
+            duration: session.sessionDuration
           });
         }
 
-        const session = sessionData.get(answer.sessionId);
-        session.questions++;
-        session.totalRisk += detectionData.riskScore || 0;
-        session.alerts += detectionData.alerts?.length || 0;
-
-        // Track violations
-        if (detectionData.alerts) {
-          detectionData.alerts.forEach(alert => {
-            session.violations.add(alert.type);
-            if (statistics.violationTypes[alert.type]) {
-              statistics.violationTypes[alert.type]++;
+        const sessionInfo = sessionData.get(session.sessionId);
+        
+        // Track violations from session data
+        if (session.sessionCheatingViolations) {
+          const violations = typeof session.sessionCheatingViolations === 'string' 
+            ? JSON.parse(session.sessionCheatingViolations) 
+            : session.sessionCheatingViolations;
+          
+          Object.keys(violations).forEach(violationType => {
+            sessionInfo.violations.add(violationType);
+            if (statistics.violationTypes[violationType]) {
+              statistics.violationTypes[violationType]++;
             } else {
-              statistics.violationTypes[alert.type] = 1;
+              statistics.violationTypes[violationType] = 1;
             }
           });
         }
 
-        // Track devices
-        if (detectionData.enhancedMetrics?.deviceType) {
-          session.devices.add(detectionData.enhancedMetrics.deviceType);
-          const deviceType = detectionData.enhancedMetrics.deviceType;
-          if (statistics.deviceDetectionStats[deviceType]) {
-            statistics.deviceDetectionStats[deviceType]++;
-          } else {
-            statistics.deviceDetectionStats.unknown++;
-          }
+        // Track devices from session data
+        if (session.sessionCheatingDevices) {
+          const devices = typeof session.sessionCheatingDevices === 'string' 
+            ? JSON.parse(session.sessionCheatingDevices) 
+            : session.sessionCheatingDevices;
+          
+          Object.keys(devices).forEach(deviceType => {
+            sessionInfo.devices.add(deviceType);
+            if (statistics.deviceDetectionStats[deviceType]) {
+              statistics.deviceDetectionStats[deviceType]++;
+            } else {
+              statistics.deviceDetectionStats.unknown++;
+            }
+          });
         }
 
-        // Track movement patterns
-        if (detectionData.enhancedMetrics?.movementPattern) {
-          session.movementPatterns.add(detectionData.enhancedMetrics.movementPattern);
-          const pattern = detectionData.enhancedMetrics.movementPattern;
-          if (statistics.movementPatternStats[pattern]) {
-            statistics.movementPatternStats[pattern]++;
-          }
+        // Track movement patterns from session data
+        if (session.sessionCheatingMovementPatterns) {
+          const patterns = typeof session.sessionCheatingMovementPatterns === 'string' 
+            ? JSON.parse(session.sessionCheatingMovementPatterns) 
+            : session.sessionCheatingMovementPatterns;
+          
+          Object.keys(patterns).forEach(pattern => {
+            sessionInfo.movementPatterns.add(pattern);
+            if (statistics.movementPatternStats[pattern]) {
+              statistics.movementPatternStats[pattern]++;
+            }
+          });
         }
 
         // Track session timing
-        if (detectionData.analytics?.sessionDuration) {
-          totalSessionDuration += detectionData.analytics.sessionDuration;
+        if (session.sessionDuration) {
+          totalSessionDuration += session.sessionDuration;
         }
 
         // Risk distribution
-        const riskScore = detectionData.riskScore || 0;
+        const riskScore = session.sessionCheatingRiskScore || 0;
         if (riskScore < 30) statistics.riskDistribution.low++;
         else if (riskScore < 70) statistics.riskDistribution.medium++;
         else statistics.riskDistribution.high++;
 
         // Severity distribution
-        const severity = detectionData.severityLevel || 'low';
+        const severity = session.sessionCheatingSeverityLevel || 'low';
         statistics.severityDistribution[severity]++;
 
         // Update totals
         totalRiskScore += riskScore;
-        totalAlerts += detectionData.alerts?.length || 0;
+        totalAlerts += session.sessionCheatingAlertsCount || 0;
         totalDetectionSessions++;
 
         // Track peak risk
         if (riskScore > statistics.peakRiskScore) {
           statistics.peakRiskScore = riskScore;
         }
-
-        // Track session timing
-        if (!session.startTime || answer.createdAt < session.startTime) {
-          session.startTime = answer.createdAt;
-        }
-        if (!session.endTime || answer.createdAt > session.endTime) {
-          session.endTime = answer.createdAt;
-        }
       }
     });
 
     // Calculate final statistics
     statistics.totalSessions = sessionData.size;
-    statistics.totalQuestions = answers.length;
     statistics.sessionsWithDetection = totalDetectionSessions;
     statistics.averageRiskScore = totalDetectionSessions > 0 
       ? Math.round(totalRiskScore / totalDetectionSessions) 
@@ -206,9 +222,10 @@ export async function GET(request) {
 
     statistics.riskTrends = sortedSessions.map(session => ({
       sessionId: session.sessionId,
-      averageRisk: Math.round(session.totalRisk / session.questions),
-      questionCount: session.questions,
+      averageRisk: session.totalRisk,
       alertCount: session.alerts,
+      severityLevel: session.severityLevel,
+      duration: session.duration,
       timestamp: session.endTime
     }));
 
@@ -220,15 +237,17 @@ export async function GET(request) {
       statistics,
       sessionBreakdown: Array.from(sessionData.values()).map(session => ({
         sessionId: session.sessionId,
-        questionCount: session.questions,
-        averageRisk: Math.round(session.totalRisk / session.questions),
+        mockId: session.mockId,
+        userEmail: session.userEmail,
+        averageRisk: session.totalRisk,
         alertCount: session.alerts,
+        severityLevel: session.severityLevel,
         violations: Array.from(session.violations),
         devices: Array.from(session.devices),
         movementPatterns: Array.from(session.movementPatterns),
-        duration: session.startTime && session.endTime 
-          ? Math.round((new Date(session.endTime) - new Date(session.startTime)) / 1000)
-          : 0
+        startTime: session.startTime,
+        endTime: session.endTime,
+        duration: session.duration
       }))
     });
 

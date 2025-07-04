@@ -1,4 +1,4 @@
-import { BriefcaseBusinessIcon, Calendar, Code2Icon, LayoutDashboard, List, Puzzle, Settings, User2Icon, WalletCards } from "lucide-react";
+import { BriefcaseBusinessIcon, Calendar, Code2Icon, LayoutDashboard, List, Puzzle, Settings, User2Icon, WalletCards, MessageCircle } from "lucide-react";
 
 export const SideBarOptions = [
     {
@@ -30,6 +30,11 @@ export const SideBarOptions = [
         name: 'Settings',
         icon: Settings,
         path:'/settings'
+    },
+    {
+        name: 'Chat',
+        icon: MessageCircle,
+        path:'/dashboard/chat'
     },
 ]
 

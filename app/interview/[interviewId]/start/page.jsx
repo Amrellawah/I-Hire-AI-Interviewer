@@ -33,6 +33,16 @@ function StartInterview({params}) {
         }
     },[interviewId, user]);
 
+    // Cleanup effect to end session when component unmounts
+    useEffect(() => {
+        return () => {
+            // End session when component unmounts
+            if (sessionId) {
+                endSession();
+            }
+        };
+    }, [sessionId]);
+
     /**
      * Initialize the interview session
      */
@@ -46,6 +56,47 @@ function StartInterview({params}) {
                 interviewId
             );
             setSessionId(newSessionId);
+
+            // Initialize session-level cheating detection with enhanced settings
+            try {
+                console.log('Creating session with:', { sessionId: newSessionId, mockId: interviewId });
+                
+                const response = await fetch('/api/session-cheating-detection/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        sessionId: newSessionId,
+                        mockId: interviewId,
+                        userEmail: user?.primaryEmailAddress?.emailAddress,
+                        detectionSettings: {
+                            detectionInterval: 2000, // More frequent detection
+                            confidenceThreshold: 0.75, // Higher confidence
+                            maxViolations: 5, // More violations before high risk
+                            alertCooldown: 10000, // Shorter cooldown
+                            faceDetectionEnabled: true,
+                            deviceDetectionEnabled: true,
+                            movementAnalysisEnabled: true,
+                            audioAnalysisEnabled: true,
+                            tabSwitchingDetectionEnabled: true,
+                            typingDetectionEnabled: true
+                        }
+                    })
+                });
+
+                console.log('Session creation response status:', response.status);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Enhanced session-level cheating detection initialized:', result);
+                } else {
+                    const errorText = await response.text();
+                    console.warn('Failed to initialize session cheating detection:', errorText);
+                }
+            } catch (error) {
+                console.error('Error initializing session cheating detection:', error);
+            }
 
             // Get interview details
             const result = await db.select().from(MockInterview)
@@ -198,6 +249,39 @@ function StartInterview({params}) {
     };
 
     /**
+     * End session and save final cheating detection data
+     */
+    const endSession = async () => {
+        if (!sessionId) return;
+
+        try {
+            const response = await fetch('/api/session-cheating-detection/end', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    sessionId: sessionId,
+                    mockId: interviewId,
+                    finalDetectionData: {
+                        sessionCompleted: true,
+                        totalQuestions: mockInterviewQuestion?.length || 0,
+                        answeredQuestions: userAnswers.filter(a => a.isAnswered).length,
+                        skippedQuestions: userAnswers.filter(a => a.isSkipped).length,
+                        sessionDuration: Date.now() - (sessionId ? parseInt(sessionId.split('_')[1]) : Date.now())
+                    }
+                })
+            });
+
+            if (response.ok) {
+                console.log('Session ended successfully');
+            }
+        } catch (error) {
+            console.error('Error ending session:', error);
+        }
+    };
+
+    /**
      * Check if current question is answered
      */
     const isCurrentQuestionAnswered = () => {
@@ -291,6 +375,7 @@ function StartInterview({params}) {
                             activeQuestionIndex={activeQuestionIndex}
                             interviewData={interviewData}
                             sessionId={sessionId}
+                            userEmail={user?.primaryEmailAddress?.emailAddress}
                             onAnswerSubmitted={loadSessionAnswers}
                             currentAnswer={getCurrentAnswer(userAnswers, activeQuestionIndex, sessionId)}
                         />
@@ -371,11 +456,17 @@ function StartInterview({params}) {
                         {activeQuestionIndex === (mockInterviewQuestion?.length || 1) - 1 && 
                          (isCurrentQuestionAnswered() || isCurrentQuestionSkipped()) && 
                          interviewData?.mockId && (
-                            <Link href={`/interview/${interviewData.mockId}/feedback?sessionId=${sessionId}`}>
-                                <Button className="px-6 py-3 rounded-full bg-gradient-to-r from-[#be3144] to-[#f05941] text-white font-semibold shadow-lg hover:scale-105 transition">
-                                    End Interview
-                                </Button>
-                            </Link>
+                            <Button 
+                                onClick={async () => {
+                                    // End session before navigating
+                                    await endSession();
+                                    // Navigate to feedback page
+                                    window.location.href = `/interview/${interviewData.mockId}/feedback?sessionId=${sessionId}`;
+                                }}
+                                className="px-6 py-3 rounded-full bg-gradient-to-r from-[#be3144] to-[#f05941] text-white font-semibold shadow-lg hover:scale-105 transition"
+                            >
+                                End Interview
+                            </Button>
                         )}
                     </div>
                 </div>

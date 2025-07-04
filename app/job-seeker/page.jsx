@@ -10,7 +10,7 @@ import {
   WebcamIcon, Briefcase, Star, Lightbulb, Search, 
   ArrowRight, Building2, Code, Paintbrush, Database,
   ChevronRight, Loader2, BarChart2, Clock, User,
-  Pencil, Book, PhoneCall, HelpCircle, Info, Handshake, Mail, Settings, LogOut
+  Pencil, Book, PhoneCall, HelpCircle, Info, Handshake, Mail, Settings, LogOut, MessageCircle
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CallInterviewCard from '../dashboard/_components/CallInterviewCard';
@@ -268,6 +268,17 @@ export default function JobSeekerPage() {
                         </a>
                         <a href="#" className="flex items-center gap-4 px-6 py-4 hover:bg-[#f1e9ea] transition-colors text-[#191011] text-base font-medium">
                           <Mail className="w-5 h-5 text-[#191011]" /> Contact Us
+                        </a>
+                        <a 
+                          href="#" 
+                          onClick={e => {
+                            e.preventDefault();
+                            setMenuOpen(false);
+                            router.push('/job-seeker/chat');
+                          }}
+                          className="flex items-center gap-4 px-6 py-4 hover:bg-[#f1e9ea] transition-colors text-[#191011] text-base font-medium"
+                        >
+                          <MessageCircle className="w-5 h-5 text-[#191011]" /> Chat
                         </a>
                       </div>
                       <div className="border-t border-[#f1e9ea] flex flex-col">

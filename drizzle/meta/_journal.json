@@ -162,6 +162,13 @@
       "when": 1751165569113,
       "tag": "0022_blushing_masked_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1751554392607,
+      "tag": "0023_solid_secret_warriors",
+      "breakpoints": true
     }
   ]
 }

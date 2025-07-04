@@ -22,6 +22,8 @@ export async function POST(request) {
       );
     }
 
+    console.log('Looking for session with:', { sessionId, mockId });
+    
     // Get current session
     const currentSession = await db
       .select()
@@ -32,6 +34,8 @@ export async function POST(request) {
           eq(SessionCheatingDetection.mockId, mockId)
         )
       );
+
+    console.log('Found sessions:', currentSession.length, currentSession.map(s => ({ sessionId: s.sessionId, mockId: s.mockId })));
 
     if (currentSession.length === 0) {
       return NextResponse.json(
