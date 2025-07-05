@@ -1,9 +1,10 @@
 "use client";
 import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { AlertTriangle, Eye, EyeOff, Users, Monitor, Shield, AlertCircle, Volume2, VolumeX, Clock, Activity } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, Users, Monitor, Shield, AlertCircle, Volume2, VolumeX, Clock, Activity, MapPin } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 
 const CheatingDetection = forwardRef(({ 
   webcamRef, 
@@ -11,9 +12,11 @@ const CheatingDetection = forwardRef(({
   onCheatingDetected,
   onCheatingResolved,
   onCheatingRiskUpdate,
+  onLandmarkData,
   sessionId,
   questionIndex,
-  interviewSettings = {} 
+  interviewSettings = {},
+  showDetails = false
 }, ref) => {
   const [detectionResults, setDetectionResults] = useState({
     faceDetection: { detected: false, confidence: 0, violations: 0, lastSeen: Date.now(), faceQuality: 0 },
@@ -46,7 +49,7 @@ const CheatingDetection = forwardRef(({
   const typingStartTimeRef = useRef(null);
   const headMovementHistoryRef = useRef([]);
 
-  // Enhanced detection settings with adaptive thresholds - optimized for automatic detection
+  // YOLO-only detection settings
   const settings = {
     detectionInterval: interviewSettings.detectionInterval || 2000,
     confidenceThreshold: interviewSettings.confidenceThreshold || 0.75,
@@ -58,36 +61,16 @@ const CheatingDetection = forwardRef(({
     audioThreshold: 0.6, // Audio analysis threshold
     tabSwitchThreshold: 3000, // 3 seconds between tab switches
     typingThreshold: 2000, // 2 seconds of continuous typing
-    // Enhanced settings for automatic detection
+    // YOLO-only detection settings
     faceDetectionEnabled: true,
-    deviceDetectionEnabled: true,
+    deviceDetectionEnabled: true, // Only YOLO device detection
     movementAnalysisEnabled: true,
     audioAnalysisEnabled: true,
     tabSwitchingDetectionEnabled: true,
     typingDetectionEnabled: true,
+    yoloOnly: true, // Force YOLO-only mode
     ...interviewSettings
   };
-
-  // Initialize face-api.js models with error handling
-  const initializeModels = useCallback(async () => {
-    try {
-      const faceapi = await import('face-api.js');
-      
-      // Load models with progress tracking
-      const modelPromises = [
-            faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
-            faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
-            faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
-            faceapi.nets.faceExpressionNet.loadFromUri('/models')
-      ];
-
-      await Promise.all(modelPromises);
-      console.log('✅ Cheating detection models loaded successfully');
-    } catch (error) {
-      console.error('❌ Failed to load cheating detection models:', error);
-      // Fallback to basic detection methods
-    }
-  }, []);
 
   // Enhanced face detection with temporal analysis
   const detectFaces = useCallback(async (videoElement) => {
@@ -116,62 +99,149 @@ const CheatingDetection = forwardRef(({
         results.primaryFace = detections[0];
         lastFaceSeenRef.current = currentTime;
         
+        // Call landmark data callback
+        if (onLandmarkData) {
+          onLandmarkData(detections[0].landmarks);
+        }
+        
         // Enhanced eye tracking with 68-point landmarks
         const landmarks = detections[0].landmarks;
         const leftEye = landmarks.getLeftEye();
         const rightEye = landmarks.getRightEye();
         
-        // Calculate eye centers with weighted average
-        const leftEyeCenter = leftEye.reduce((acc, point, index) => ({
-          x: acc.x + point.x * (index < 6 ? 1.2 : 1), // Weight inner points more
-          y: acc.y + point.y * (index < 6 ? 1.2 : 1)
-        }), { x: 0, y: 0 });
+        // Safety checks for eye data
+        if (!leftEye || leftEye.length === 0 || !rightEye || rightEye.length === 0) {
+          console.warn('Invalid eye data detected');
+          return { faceCount: 1, primaryFace: detections[0], lookingAway: false, expressions: {} };
+        }
         
-        leftEyeCenter.x /= leftEye.length * 1.1;
-        leftEyeCenter.y /= leftEye.length * 1.1;
-
-        const rightEyeCenter = rightEye.reduce((acc, point, index) => ({
-          x: acc.x + point.x * (index < 6 ? 1.2 : 1),
-          y: acc.y + point.y * (index < 6 ? 1.2 : 1)
-        }), { x: 0, y: 0 });
+        // Enhanced eye center calculation with better weighting
+        const leftEyeCenter = leftEye.reduce((acc, point, index) => {
+          // Weight inner eye points more heavily for better accuracy
+          const weight = index < 6 ? 1.5 : 1.0;
+          return {
+            x: acc.x + point.x * weight,
+            y: acc.y + point.y * weight
+          };
+        }, { x: 0, y: 0 });
         
-        rightEyeCenter.x /= rightEye.length * 1.1;
-        rightEyeCenter.y /= rightEye.length * 1.1;
+        leftEyeCenter.x /= leftEye.reduce((sum, _, index) => sum + (index < 6 ? 1.5 : 1.0), 0);
+        leftEyeCenter.y /= leftEye.reduce((sum, _, index) => sum + (index < 6 ? 1.5 : 1.0), 0);
 
-        // Calculate eye openness (distance between upper and lower eyelids)
+        const rightEyeCenter = rightEye.reduce((acc, point, index) => {
+          const weight = index < 6 ? 1.5 : 1.0;
+          return {
+            x: acc.x + point.x * weight,
+            y: acc.y + point.y * weight
+          };
+        }, { x: 0, y: 0 });
+        
+        rightEyeCenter.x /= rightEye.reduce((sum, _, index) => sum + (index < 6 ? 1.5 : 1.0), 0);
+        rightEyeCenter.y /= rightEye.reduce((sum, _, index) => sum + (index < 6 ? 1.5 : 1.0), 0);
+
+        // Calculate eye openness with more precision
         const leftEyeOpenness = Math.abs(leftEye[1].y - leftEye[5].y);
         const rightEyeOpenness = Math.abs(rightEye[1].y - rightEye[5].y);
         results.eyeOpenness = (leftEyeOpenness + rightEyeOpenness) / 2;
 
-        // Enhanced gaze tracking
+        // Enhanced gaze tracking with multiple reference points
         const videoCenter = { x: videoElement.videoWidth / 2, y: videoElement.videoHeight / 2 };
         const eyeCenter = {
           x: (leftEyeCenter.x + rightEyeCenter.x) / 2,
           y: (leftEyeCenter.y + rightEyeCenter.y) / 2
         };
 
+        // Calculate gaze direction using eye corners and center
+        const leftEyeCorner = leftEye[0]; // Leftmost point of left eye
+        const rightEyeCorner = rightEye[3]; // Rightmost point of right eye
+        const eyeWidth = Math.sqrt(
+          Math.pow(rightEyeCorner.x - leftEyeCorner.x, 2) + 
+          Math.pow(rightEyeCorner.y - leftEyeCorner.y, 2)
+        );
+
+        // Calculate gaze direction vector
+        const gazeVector = {
+          x: eyeCenter.x - videoCenter.x,
+          y: eyeCenter.y - videoCenter.y
+        };
+
+        // Normalize gaze vector
+        const gazeDistance = Math.sqrt(gazeVector.x * gazeVector.x + gazeVector.y * gazeVector.y);
+        const normalizedGaze = {
+          x: gazeVector.x / gazeDistance,
+          y: gazeVector.y / gazeDistance
+        };
+
+        // Enhanced distance calculation with adaptive thresholds
         const distanceFromCenter = Math.sqrt(
           Math.pow(eyeCenter.x - videoCenter.x, 2) + 
           Math.pow(eyeCenter.y - videoCenter.y, 2)
         );
 
-        // Adaptive threshold based on video size
-        const adaptiveThreshold = Math.min(videoElement.videoWidth * 0.4, videoElement.videoHeight * 0.4);
-        results.lookingAway = distanceFromCenter > adaptiveThreshold;
+        // Adaptive threshold based on video size and face size
+        const faceBox = detections[0].detection.box;
+        const faceSize = Math.sqrt(faceBox.width * faceBox.height);
+        const videoDiagonal = Math.sqrt(
+          Math.pow(videoElement.videoWidth, 2) + 
+          Math.pow(videoElement.videoHeight, 2)
+        );
         
-        // Update gaze history
+        // Dynamic threshold that adapts to face size and video size
+        const baseThreshold = Math.min(videoElement.videoWidth * 0.35, videoElement.videoHeight * 0.35);
+        const faceSizeFactor = Math.max(0.5, Math.min(1.5, faceSize / (videoDiagonal * 0.3)));
+        const adaptiveThreshold = baseThreshold * faceSizeFactor;
+
+        // Enhanced looking away detection with confidence
+        const lookingAwayDistance = distanceFromCenter > adaptiveThreshold;
+        const lookingAwayConfidence = Math.min(1.0, distanceFromCenter / (adaptiveThreshold * 1.5));
+        
+        results.lookingAway = lookingAwayDistance;
+        results.gazeConfidence = lookingAwayConfidence;
+        results.gazeDistance = distanceFromCenter;
+        results.gazeThreshold = adaptiveThreshold;
+
+        // Calculate gaze zones for more detailed analysis
+        const gazeZone = calculateGazeZone(eyeCenter, videoElement);
+        results.gazeZone = gazeZone;
+        
+        // Enhanced gaze history with more data
         gazeHistoryRef.current.push({
           x: eyeCenter.x,
           y: eyeCenter.y,
           timestamp: currentTime,
-          lookingAway: results.lookingAway
+          lookingAway: results.lookingAway,
+          confidence: lookingAwayConfidence,
+          zone: gazeZone,
+          eyeOpenness: results.eyeOpenness,
+          faceSize: faceSize
         });
         
         // Keep only recent gaze data
         if (gazeHistoryRef.current.length > settings.gazeTrackingWindow) {
           gazeHistoryRef.current.shift();
         }
-        
+
+        // Analyze gaze patterns for suspicious behavior
+        if (gazeHistoryRef.current.length >= 5) {
+          const recentGaze = gazeHistoryRef.current.slice(-5);
+          if (recentGaze && recentGaze.length > 0) {
+            const lookingAwayCount = recentGaze.filter(g => g && g.lookingAway).length;
+            const averageConfidence = recentGaze.reduce((sum, g) => sum + (g ? g.confidence : 0), 0) / recentGaze.length;
+            
+            // Detect rapid gaze changes (suspicious)
+            const gazeChanges = recentGaze.filter((g, i) => 
+              i > 0 && g && recentGaze[i-1] && g.lookingAway !== recentGaze[i-1].lookingAway
+            ).length;
+            
+            results.gazePattern = {
+              lookingAwayCount,
+              averageConfidence,
+              gazeChanges,
+              isSuspicious: gazeChanges > 3 || (lookingAwayCount >= 3 && averageConfidence > 0.7)
+            };
+          }
+        }
+
         // Analyze facial expressions for suspicious behavior
         if (detections[0].expressions) {
           results.expressions = detections[0].expressions;
@@ -187,7 +257,6 @@ const CheatingDetection = forwardRef(({
         }
 
         // Calculate face quality score
-        const faceBox = detections[0].detection.box;
         const faceArea = faceBox.width * faceBox.height;
         const videoArea = videoElement.videoWidth * videoElement.videoHeight;
         results.faceQuality = Math.min(faceArea / videoArea * 100, 100);
@@ -204,9 +273,48 @@ const CheatingDetection = forwardRef(({
       console.error('Face detection error:', error);
       return { faceCount: 0, primaryFace: null, lookingAway: false, expressions: {} };
     }
-  }, [settings.faceDetectionTimeout, settings.gazeTrackingWindow]);
+  }, [settings.faceDetectionTimeout, settings.gazeTrackingWindow, onLandmarkData]);
 
-  // Enhanced device detection with machine learning approach
+  // Calculate gaze zone (center, left, right, top, bottom)
+  const calculateGazeZone = (eyeCenter, videoElement) => {
+    const centerX = videoElement.videoWidth / 2;
+    const centerY = videoElement.videoHeight / 2;
+    const threshold = Math.min(videoElement.videoWidth, videoElement.videoHeight) * 0.2;
+    
+    const dx = eyeCenter.x - centerX;
+    const dy = eyeCenter.y - centerY;
+    
+    if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) {
+      return 'center';
+    } else if (Math.abs(dx) > Math.abs(dy)) {
+      return dx > 0 ? 'right' : 'left';
+    } else {
+      return dy > 0 ? 'bottom' : 'top';
+    }
+  };
+
+  // Initialize face-api.js models with error handling
+  const initializeModels = useCallback(async () => {
+    try {
+      const faceapi = await import('face-api.js');
+      
+      // Load models with progress tracking
+      const modelPromises = [
+            faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
+            faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+            faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
+            faceapi.nets.faceExpressionNet.loadFromUri('/models')
+      ];
+
+      await Promise.all(modelPromises);
+      console.log('✅ Cheating detection models loaded successfully');
+    } catch (error) {
+      console.error('❌ Failed to load cheating detection models:', error);
+      // Fallback to basic detection methods
+    }
+  }, []);
+
+  // YOLO-only device detection
   const detectDevices = useCallback(async (videoElement) => {
     try {
       const canvas = canvasRef.current;
@@ -216,80 +324,121 @@ const CheatingDetection = forwardRef(({
       canvas.height = videoElement.videoHeight;
       ctx.drawImage(videoElement, 0, 0);
 
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-
-      // Enhanced color and brightness analysis
-      let brightPixels = 0;
-      let bluePixels = 0;
-      let whitePixels = 0;
-      let totalPixels = data.length / 4;
-      let edgePixels = 0;
-
-      // Edge detection for device boundaries
-      const edgeThreshold = 50;
-
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        
-        // Bright pixel detection (potential screens)
-        if (r > 180 && g > 180 && b > 180) {
-          brightPixels++;
-        }
-        
-        // Blue-tinted pixel detection (phones, tablets)
-        if (b > r * 1.3 && b > g * 1.3 && b > 100) {
-          bluePixels++;
-        }
-        
-        // Pure white pixel detection (monitors)
-        if (r > 240 && g > 240 && b > 240) {
-          whitePixels++;
-        }
-      }
-
-      // Edge detection for rectangular devices
-      for (let y = 1; y < canvas.height - 1; y++) {
-        for (let x = 1; x < canvas.width - 1; x++) {
-          const idx = (y * canvas.width + x) * 4;
-          const current = data[idx];
-          const right = data[idx + 4];
-          const bottom = data[idx + canvas.width * 4];
-          
-          const horizontalDiff = Math.abs(current - right);
-          const verticalDiff = Math.abs(current - bottom);
-          
-          if (horizontalDiff > edgeThreshold || verticalDiff > edgeThreshold) {
-            edgePixels++;
-          }
-        }
-      }
-
-      const brightRatio = brightPixels / totalPixels;
-      const blueRatio = bluePixels / totalPixels;
-      const whiteRatio = whitePixels / totalPixels;
-      const edgeRatio = edgePixels / totalPixels;
-
-      // Enhanced detection logic with multiple indicators
-      const phoneDetected = blueRatio > 0.08 || (edgeRatio > 0.15 && brightRatio > 0.08);
+      // Convert canvas to base64 for API call
+      const imageData = canvas.toDataURL('image/jpeg', 0.8);
       
-      // Device type classification
-      let deviceType = null;
-      if (phoneDetected && blueRatio > 0.1) deviceType = 'phone';
+      // Call YOLO backend API
+      const response = await fetch('/api/detect-mobile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ image: imageData })
+      });
 
-      const confidence = Math.max(brightRatio, blueRatio, whiteRatio, edgeRatio * 2);
+      if (!response.ok) {
+        console.error('YOLO backend unavailable - device detection disabled');
+        return {
+          phoneDetected: false,
+          deviceType: null,
+          confidence: 0,
+          detections: [],
+          metrics: {
+            totalDetections: 0,
+            maxConfidence: 0,
+            backendUsed: 'none',
+            error: 'YOLO backend unavailable'
+          },
+          landmarks: {
+            brightAreas: [],
+            blueAreas: [],
+            whiteAreas: [],
+            edgePoints: [],
+            detectedRegions: []
+          }
+        };
+      }
+
+      const result = await response.json();
+      
+      // Process YOLO detection results
+      const phoneDetected = result.mobile_detected;
+      const confidence = result.confidence || 0;
+      const detections = result.detections || [];
+      
+      // Device type classification based on detection area and confidence
+      let deviceType = null;
+      if (phoneDetected) {
+        if (detections.length > 0) {
+          const largestDetection = detections.reduce((max, det) => 
+            det.area > max.area ? det : max, detections[0]);
+          
+          // Classify based on detection area and confidence
+          if (largestDetection.area > 50000 && confidence > 0.9) {
+            deviceType = 'tablet';
+          } else if (confidence > 0.8) {
+            deviceType = 'phone';
+          } else {
+            deviceType = 'mobile_device';
+          }
+        } else {
+          deviceType = 'mobile_device';
+        }
+      }
+
+      // Create landmarks for visualization
+      const deviceLandmarks = {
+        brightAreas: [],
+        blueAreas: [],
+        whiteAreas: [],
+        edgePoints: [],
+        detectedRegions: []
+      };
+
+      // Add YOLO detection boxes as landmarks
+      if (detections.length > 0) {
+        deviceLandmarks.detectedRegions = detections.map(detection => ({
+          center: detection.center,
+          size: detection.area,
+          confidence: detection.confidence,
+          bbox: detection.bbox,
+          type: 'yolo_detection'
+        }));
+      }
 
       return {
         phoneDetected,
         deviceType,
         confidence,
-        metrics: { brightRatio, blueRatio, whiteRatio, edgeRatio }
+        detections: detections,
+        metrics: {
+          totalDetections: result.total_detections || 0,
+          maxConfidence: confidence,
+          backendUsed: 'yolo'
+        },
+        landmarks: deviceLandmarks
       };
     } catch (error) {
-      console.error('Device detection error:', error);
-      return { phoneDetected: false, confidence: 0 };
+      console.error('YOLO device detection error:', error);
+      return {
+        phoneDetected: false,
+        deviceType: null,
+        confidence: 0,
+        detections: [],
+        metrics: {
+          totalDetections: 0,
+          maxConfidence: 0,
+          backendUsed: 'none',
+          error: error.message
+        },
+        landmarks: {
+          brightAreas: [],
+          blueAreas: [],
+          whiteAreas: [],
+          edgePoints: [],
+          detectedRegions: []
+        }
+      };
     }
   }, []);
 
@@ -381,7 +530,7 @@ const CheatingDetection = forwardRef(({
           movements.push(movement);
         }
 
-        const avgMovement = movements.reduce((sum, m) => sum + m, 0) / movements.length;
+        const avgMovement = movements && movements.length > 0 ? movements.reduce((sum, m) => sum + (m || 0), 0) / movements.length : 0;
         const maxMovement = Math.max(...movements);
 
         // Detect excessive head movement
@@ -406,11 +555,11 @@ const CheatingDetection = forwardRef(({
         }
 
         // Detect head tilting (suspicious behavior)
-        const recentEyeDistances = recentPositions.map(p => p.eyeDistance);
-        const eyeDistanceVariance = recentEyeDistances.reduce((sum, d, i) => {
-          const avg = recentEyeDistances.reduce((a, b) => a + b, 0) / recentEyeDistances.length;
-          return sum + Math.pow(d - avg, 2);
-        }, 0) / recentEyeDistances.length;
+        const recentEyeDistances = recentPositions.map(p => p.eyeDistance).filter(d => d !== undefined && d !== null);
+        const eyeDistanceVariance = recentEyeDistances.length > 0 ? recentEyeDistances.reduce((sum, d, i) => {
+          const avg = recentEyeDistances.reduce((a, b) => a + (b || 0), 0) / recentEyeDistances.length;
+          return sum + Math.pow((d || 0) - avg, 2);
+        }, 0) / recentEyeDistances.length : 0;
 
         if (eyeDistanceVariance > Math.pow(eyeDistance * 0.1, 2)) {
           headMovementPattern = 'head_tilting';
@@ -725,19 +874,19 @@ const CheatingDetection = forwardRef(({
         Math.round((data.keystrokes.length / 5) / (totalTime / 60000)) : 0;
 
       // Analyze timing patterns
-      const intervals = data.keystrokes.slice(1).map((stroke, index) => stroke.timeSinceLastKey);
-      const averageInterval = intervals.length > 0 ? 
-        intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length : 0;
-      const variance = intervals.length > 0 ? 
-        intervals.reduce((sum, interval) => sum + Math.pow(interval - averageInterval, 2), 0) / intervals.length : 0;
+              const intervals = data.keystrokes && data.keystrokes.length > 1 ? 
+          data.keystrokes.slice(1).map((stroke, index) => stroke ? stroke.timeSinceLastKey : 0).filter(interval => interval !== undefined && interval !== null) : [];
+        const averageInterval = intervals.length > 0 ? 
+          intervals.reduce((sum, interval) => sum + (interval || 0), 0) / intervals.length : 0;
+        const variance = intervals.length > 0 ? 
+          intervals.reduce((sum, interval) => sum + Math.pow((interval || 0) - averageInterval, 2), 0) / intervals.length : 0;
 
       // Detect suspicious patterns with higher thresholds
       const suspiciousPatterns = detectSuspiciousPatterns(data, typingSpeed, averageInterval, variance);
       
       // Only count recent suspicious events (last 60 seconds instead of 30)
-      const suspiciousEventCount = data.suspiciousEvents.filter(event => 
-        Date.now() - event.timestamp < 60000
-      ).length;
+      const suspiciousEventCount = data.suspiciousEvents && data.suspiciousEvents.length > 0 ? 
+        data.suspiciousEvents.filter(event => event && event.timestamp && (Date.now() - event.timestamp < 60000)).length : 0;
 
       // Determine typing pattern with more lenient thresholds
       let typingPattern = 'normal';
@@ -785,10 +934,10 @@ const CheatingDetection = forwardRef(({
     }
 
     // Sudden bursts of typing - more stringent criteria
-    const recentKeystrokes = data.keystrokes.slice(-15);  // Increased from 10
+    const recentKeystrokes = data.keystrokes && data.keystrokes.length > 0 ? data.keystrokes.slice(-15) : [];  // Increased from 10
     if (recentKeystrokes.length >= 10) {  // Increased from 5
-      const recentIntervals = recentKeystrokes.slice(1).map((stroke, index) => stroke.timeSinceLastKey);
-      const recentAverage = recentIntervals.reduce((sum, interval) => sum + interval, 0) / recentIntervals.length;
+      const recentIntervals = recentKeystrokes.slice(1).map((stroke, index) => stroke ? stroke.timeSinceLastKey : 0).filter(interval => interval !== undefined && interval !== null);
+      const recentAverage = recentIntervals.length > 0 ? recentIntervals.reduce((sum, interval) => sum + (interval || 0), 0) / recentIntervals.length : 0;
       
       if (recentAverage < 30) {  // Decreased from 50 - more stringent
         patterns.push('typing_burst');
@@ -796,7 +945,8 @@ const CheatingDetection = forwardRef(({
     }
 
     // Long pauses followed by fast typing - increased threshold
-    const longPauses = data.keystrokes.filter(stroke => stroke.timeSinceLastKey > 10000);  // Increased from 5000
+    const longPauses = data.keystrokes && data.keystrokes.length > 0 ? 
+      data.keystrokes.filter(stroke => stroke && stroke.timeSinceLastKey && stroke.timeSinceLastKey > 10000) : [];  // Increased from 5000
     if (longPauses.length > 1) {  // Require multiple long pauses
       patterns.push('long_pauses');
     }
@@ -837,9 +987,10 @@ const CheatingDetection = forwardRef(({
     // Detect perfect timing (suspicious) - more stringent criteria
     if (timeSinceLastKey > 0 && timeSinceLastKey < 80 && 
         data.keystrokes.length > 10) {  // Increased length requirement
-      const lastIntervals = data.keystrokes.slice(-8).map(stroke => stroke.timeSinceLastKey);  // Increased from 5
-      const intervalVariance = lastIntervals.reduce((sum, interval) => 
-        sum + Math.pow(interval - timeSinceLastKey, 2), 0) / lastIntervals.length;
+      const lastIntervals = data.keystrokes && data.keystrokes.length > 0 ? 
+        data.keystrokes.slice(-8).map(stroke => stroke ? stroke.timeSinceLastKey : 0).filter(interval => interval !== undefined && interval !== null) : [];  // Increased from 5
+      const intervalVariance = lastIntervals.length > 0 ? lastIntervals.reduce((sum, interval) => 
+        sum + Math.pow((interval || 0) - timeSinceLastKey, 2), 0) / lastIntervals.length : 0;
       
       if (intervalVariance < 5) {  // Decreased from 10 - more stringent
         data.suspiciousEvents.push({
@@ -942,9 +1093,8 @@ const CheatingDetection = forwardRef(({
     const timeSinceLastSwitch = currentTime - data.lastSwitchTime;
     
     // Detect recent tab switching (within last 30 seconds)
-    const recentSwitches = data.switchHistory.filter(switchEvent => 
-      currentTime - switchEvent.timestamp < 30000
-    );
+    const recentSwitches = data.switchHistory && data.switchHistory.length > 0 ? 
+      data.switchHistory.filter(switchEvent => switchEvent && switchEvent.timestamp && (currentTime - switchEvent.timestamp < 30000)) : [];
     
     const hasRecentSwitch = recentSwitches.length > 0;
     const switchCount = recentSwitches.length;
@@ -1037,6 +1187,11 @@ const CheatingDetection = forwardRef(({
     }
 
     try {
+      // Additional safety check for detection results
+      if (!detectionResults || typeof detectionResults !== 'object') {
+        console.warn('Invalid detection results, resetting...');
+        return;
+      }
       // Get audio stream - try multiple sources
       let audioStream = null;
       
@@ -1075,6 +1230,12 @@ const CheatingDetection = forwardRef(({
 
       const results = await Promise.all(detectionPromises);
       
+      // Safety check for results
+      if (!results || results.length < 3) {
+        console.warn('Invalid detection results received');
+        return;
+      }
+      
       // Handle case where audio analysis was not added
       const [faceResults, deviceResults, headMovementResults, audioResults] = results;
 
@@ -1094,11 +1255,15 @@ const CheatingDetection = forwardRef(({
         },
         eyeTracking: {
           lookingAway: faceResults.lookingAway,
-          confidence: faceResults.lookingAway ? 0.8 : 0.2,
+          confidence: faceResults.gazeConfidence || 0,
           violations: faceResults.lookingAway ? 
             detectionResults.eyeTracking.violations + 1 : 
             detectionResults.eyeTracking.violations,
-          gazeHistory: gazeHistoryRef.current.slice(-5)
+          gazeDistance: faceResults.gazeDistance || 0,
+          gazeThreshold: faceResults.gazeThreshold || 0,
+          gazeZone: faceResults.gazeZone || 'center',
+          gazePattern: faceResults.gazePattern || null,
+          eyeOpenness: faceResults.eyeOpenness || 0
         },
         multipleFaces: {
           detected: faceResults.faceCount > 1,
@@ -1108,13 +1273,19 @@ const CheatingDetection = forwardRef(({
             detectionResults.multipleFaces.violations,
           facePositions: faceResults.faceCount > 1 ? Array(faceResults.faceCount).fill({}) : []
         },
-        phoneDetection: {
+                phoneDetection: {
           detected: deviceResults.phoneDetected,
           confidence: deviceResults.confidence,
-          violations: deviceResults.phoneDetected ? 
+          violations: deviceResults.phoneDetected ?
             detectionResults.phoneDetection.violations + 1 : 
             detectionResults.phoneDetection.violations,
-          deviceType: deviceResults.deviceType
+          deviceType: deviceResults.deviceType,
+          landmarks: deviceResults.landmarks || null,
+          metrics: {
+            ...deviceResults.metrics,
+            yoloOnly: true,
+            backendUsed: deviceResults.metrics?.backendUsed || 'yolo'
+          }
         },
         headMovement: {
           excessiveHeadMovement: headMovementResults.excessiveHeadMovement,
@@ -1172,6 +1343,29 @@ const CheatingDetection = forwardRef(({
 
       frameCountRef.current++;
 
+      // Call landmark data callback for device detection if device is detected
+      if (onLandmarkData && deviceResults.phoneDetected && deviceResults.landmarks) {
+        // Combine face landmarks with device landmarks if face is detected
+        const combinedLandmarks = {
+          deviceDetection: deviceResults.landmarks,
+          deviceDetected: deviceResults.phoneDetected,
+          deviceType: deviceResults.deviceType,
+          deviceConfidence: deviceResults.confidence,
+          yoloDetections: deviceResults.detections || [],
+          backendUsed: deviceResults.metrics?.backendUsed || 'yolo',
+          yoloOnly: true
+        };
+        
+        // Add face landmarks if available
+        if (faceResults.faceCount > 0 && faceResults.primaryFace) {
+          combinedLandmarks.positions = faceResults.primaryFace.landmarks.positions;
+          combinedLandmarks.getLeftEye = faceResults.primaryFace.landmarks.getLeftEye;
+          combinedLandmarks.getRightEye = faceResults.primaryFace.landmarks.getRightEye;
+        }
+        
+        onLandmarkData(combinedLandmarks);
+      }
+
       setDetectionResults(newResults);
 
       // Calculate enhanced risk score
@@ -1180,21 +1374,48 @@ const CheatingDetection = forwardRef(({
 
       // Enhanced alert system with severity levels
       const currentTime = Date.now();
-      const violations = Object.entries(newResults).filter(([key, result]) => {
+      const violations = Object.entries(newResults || {}).filter(([key, result]) => {
+        if (!key || !result) return false;
         if (key === 'faceDetection') return !result.detected;
         if (key === 'multipleFaces') return result.detected;
         return result.detected || result.lookingAway || result.excessiveHeadMovement;
       });
 
-      if (violations.length > 0 && currentTime - lastAlertTimeRef.current > settings.alertCooldown) {
+      if (violations && violations.length > 0 && currentTime - lastAlertTimeRef.current > settings.alertCooldown) {
         // Calculate alert severity
         const severity = violations.length > 2 ? 'high' : violations.length > 1 ? 'medium' : 'low';
+        
+        // Safely process violations for message
+        let violationMessage = 'Potential cheating detected';
+        try {
+          const violationTypes = violations
+            .map(([key]) => {
+              if (!key) return null;
+              try {
+                return key.replace(/([A-Z])/g, ' $1').toLowerCase();
+              } catch (e) {
+                return 'unknown';
+              }
+            })
+            .filter(Boolean);
+          
+          if (violationTypes && violationTypes.length > 0) {
+            try {
+              violationMessage = `Potential cheating detected: ${violationTypes.join(', ')}`;
+            } catch (e) {
+              console.warn('Error joining violation types:', e);
+              violationMessage = 'Potential cheating detected';
+            }
+          }
+        } catch (e) {
+          console.warn('Error processing violation message:', e);
+        }
         
         const alert = {
           id: Date.now(),
           type: 'warning',
           severity,
-          message: `Potential cheating detected: ${violations.map(([key]) => key.replace(/([A-Z])/g, ' $1').toLowerCase()).join(', ')}`,
+          message: violationMessage,
           timestamp: new Date().toISOString(),
           violations: violations.map(([key, result]) => ({ type: key, ...result })),
           riskScore
@@ -1399,50 +1620,15 @@ const CheatingDetection = forwardRef(({
 
   return (
     <div className="space-y-4">
-      {/* Enhanced Detection Status */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-green-50 rounded-lg gap-3 border border-green-200">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-green-600" />
-            <span className="font-medium text-sm text-green-700">
-              Enhanced Cheating Detection: Active
-            </span>
-            <div className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">
-              Auto-Enabled
-            </div>
-          </div>
-          {/* Status indicators - responsive layout */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            {/* Audio status indicator */}
-            <div className="flex items-center gap-1">
-              <div className={`w-2 h-2 rounded-full ${
-                detectionResults.audioAnalysis.audioAvailable ? 'bg-blue-500' : 'bg-gray-400'
-              }`} />
-              <span className="text-xs text-gray-500">
-                {detectionResults.audioAnalysis.audioAvailable ? 'Audio' : 'No Audio'}
-              </span>
-            </div>
-            {/* Typing detection status */}
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-xs text-gray-500">
-                Typing Detection
-              </span>
-            </div>
-            {/* Tab switching detection status */}
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-purple-500" />
-              <span className="text-xs text-gray-500">
-                Tab Switching
-              </span>
-            </div>
-            {/* Head movement detection status */}
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
-              <span className="text-xs text-gray-500">
-                Head Movement
-              </span>
-            </div>
+      {/* Always Active/Status UI (optional, can be shown always) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-2">
+        <div className="flex items-center gap-2">
+          <Shield className="h-5 w-5 text-green-600" />
+          <span className="font-medium text-sm text-green-700">
+            Enhanced Cheating Detection: Active
+          </span>
+          <div className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+            Auto-Enabled
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1451,147 +1637,148 @@ const CheatingDetection = forwardRef(({
           </div>
         </div>
       </div>
-
-      {/* Enhanced Risk Score */}
-      <div className="p-4 bg-white border rounded-lg">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-2">
-          <h3 className="font-semibold text-sm">Enhanced Risk Assessment</h3>
-          <Badge className={getRiskColor(overallRisk)}>
-            {getRiskLevel(overallRisk)} Risk
-          </Badge>
-        </div>
-        <Progress value={overallRisk} className="h-2" />
-        <div className="text-xs text-gray-500 mt-1">
-          {Math.round(overallRisk)}% risk level - Weighted analysis
-        </div>
-      </div>
-
-      {/* Enhanced Detection Metrics - Responsive Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        {Object.entries(detectionResults).map(([key, result]) => (
-          <div key={key} className="p-3 bg-white border rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium capitalize">
-                {key.replace(/([A-Z])/g, ' $1').toLowerCase()}
-              </span>
-              <div className="flex items-center gap-1">
-              <div className={`w-2 h-2 rounded-full ${
-                result.detected || result.lookingAway || result.excessiveHeadMovement || 
-                (key === 'faceDetection' && !result.detected)
-                  ? 'bg-red-500' 
-                  : 'bg-green-500'
-              }`} />
-                {/* Show audio availability indicator */}
-                {key === 'audioAnalysis' && (
-                  <div className={`w-1 h-1 rounded-full ${
-                    result.audioAvailable ? 'bg-blue-500' : 'bg-gray-400'
-                  }`} title={result.audioAvailable ? 'Audio Available' : 'Audio Not Available'} />
-                )}
-              </div>
+      {/* Only show details if showDetails is true */}
+      {showDetails && (
+        <>
+          {/* Enhanced Risk Score */}
+          <div className="p-4 bg-white border rounded-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-2">
+              <h3 className="font-semibold text-sm">Enhanced Risk Assessment</h3>
+              <Badge className={getRiskColor(overallRisk)}>
+                {getRiskLevel(overallRisk)} Risk
+              </Badge>
             </div>
-            <div className="text-xs text-gray-500">
-              Violations: {result.violations}
+            <Progress value={overallRisk} className="h-2" />
+            <div className="text-xs text-gray-500 mt-1">
+              {Math.round(overallRisk)}% risk level - Weighted analysis
             </div>
-            {result.confidence > 0 && (
-              <div className="text-xs text-gray-500">
-                Confidence: {Math.round(result.confidence * 100)}%
-              </div>
-            )}
-            {/* Show additional metrics for enhanced detection */}
-            {result.faceQuality && (
-              <div className="text-xs text-gray-500">
-                Quality: {Math.round(result.faceQuality)}%
-              </div>
-            )}
-            {result.headMovementPattern && result.headMovementPattern !== 'normal' && (
-              <div className="text-xs text-orange-600">
-                Pattern: {result.headMovementPattern.replace('_', ' ')}
-              </div>
-            )}
-            {result.deviceType && (
-              <div className="text-xs text-purple-600">
-                Device: {result.deviceType}
-              </div>
-            )}
-            {/* Show typing detection metrics */}
-            {key === 'typingDetection' && result.typingSpeed > 0 && (
-              <div className="text-xs text-blue-600">
-                Speed: {result.typingSpeed} WPM
-              </div>
-            )}
-            {key === 'typingDetection' && result.typingPattern !== 'normal' && (
-              <div className="text-xs text-orange-600">
-                Pattern: {result.typingPattern.replace('_', ' ')}
-              </div>
-            )}
-            {key === 'typingDetection' && result.suspiciousEvents > 0 && (
-              <div className="text-xs text-red-600">
-                Suspicious: {result.suspiciousEvents} events
-              </div>
-            )}
-            {/* Show high violation warning for typing */}
-            {key === 'typingDetection' && result.violations > 10 && (
-              <div className="text-xs text-red-600 font-medium bg-red-50 px-1 py-0.5 rounded mt-1">
-                ⚠️ High violations: {result.violations}
-              </div>
-            )}
-            {/* Show tab switching metrics */}
-            {key === 'tabSwitching' && result.switchCount > 0 && (
-              <div className="text-xs text-purple-600">
-                Switches: {result.switchCount} (30s)
-              </div>
-            )}
-            {key === 'tabSwitching' && result.totalSwitches > 0 && (
-              <div className="text-xs text-purple-600">
-                Total: {result.totalSwitches} switches
-              </div>
-            )}
-            {key === 'tabSwitching' && result.detected && (
-              <div className="text-xs text-red-600 font-medium bg-red-50 px-1 py-0.5 rounded mt-1">
-                ⚠️ Tab switching detected!
-              </div>
-            )}
-            {/* Show audio availability status */}
-            {key === 'audioAnalysis' && (
-              <div className="text-xs text-gray-400">
-                {result.audioAvailable ? 'Audio: Available' : 'Audio: Not Available'}
-              </div>
-            )}
           </div>
-        ))}
-      </div>
-
-      {/* Enhanced Alerts with Severity */}
-      {alerts.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="font-semibold text-sm">Detection Alerts</h3>
-          {alerts.slice(-3).map((alert) => (
-            <Alert key={alert.id} className={`border ${getSeverityColor(alert.severity)}`}>
-              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              <AlertDescription className="text-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <span className="break-words">{alert.message}</span>
-                  <button
-                    onClick={() => clearAlert(alert.id)}
-                    className="text-xs text-yellow-600 hover:text-yellow-800 self-start sm:self-auto"
-                  >
-                    Dismiss
-                  </button>
+          {/* Enhanced Detection Metrics - Responsive Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {Object.entries(detectionResults).map(([key, result]) => (
+              <div key={key} className="p-3 bg-white border rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium capitalize">
+                    {key.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                  </span>
+                  <div className="flex items-center gap-1">
+                  <div className={`w-2 h-2 rounded-full ${
+                    result.detected || result.lookingAway || result.excessiveHeadMovement || 
+                    (key === 'faceDetection' && !result.detected)
+                      ? 'bg-red-500' 
+                      : 'bg-green-500'
+                  }`} />
+                    {/* Show audio availability indicator */}
+                    {key === 'audioAnalysis' && (
+                      <div className={`w-1 h-1 rounded-full ${
+                        result.audioAvailable ? 'bg-blue-500' : 'bg-gray-400'
+                      }`} title={result.audioAvailable ? 'Audio Available' : 'Audio Not Available'} />
+                    )}
+                  </div>
                 </div>
-                <div className="text-xs text-yellow-600 mt-1">
-                  {new Date(alert.timestamp).toLocaleTimeString()} - Risk: {Math.round(alert.riskScore)}%
+                <div className="text-xs text-gray-500">
+                  Violations: {result.violations}
                 </div>
-                {alert.severity && (
-                  <div className="text-xs text-yellow-600">
-                    Severity: {alert.severity.toUpperCase()}
+                {result.confidence > 0 && (
+                  <div className="text-xs text-gray-500">
+                    Confidence: {Math.round(result.confidence * 100)}%
                   </div>
                 )}
-              </AlertDescription>
-            </Alert>
-          ))}
-        </div>
+                {/* Show additional metrics for enhanced detection */}
+                {result.faceQuality && (
+                  <div className="text-xs text-gray-500">
+                    Quality: {Math.round(result.faceQuality)}%
+                  </div>
+                )}
+                {result.headMovementPattern && result.headMovementPattern !== 'normal' && (
+                  <div className="text-xs text-orange-600">
+                    Pattern: {result.headMovementPattern.replace('_', ' ')}
+                  </div>
+                )}
+                {result.deviceType && (
+                  <div className="text-xs text-purple-600">
+                    Device: {result.deviceType}
+                  </div>
+                )}
+                {/* Show typing detection metrics */}
+                {key === 'typingDetection' && result.typingSpeed > 0 && (
+                  <div className="text-xs text-blue-600">
+                    Speed: {result.typingSpeed} WPM
+                  </div>
+                )}
+                {key === 'typingDetection' && result.typingPattern !== 'normal' && (
+                  <div className="text-xs text-orange-600">
+                    Pattern: {result.typingPattern.replace('_', ' ')}
+                  </div>
+                )}
+                {key === 'typingDetection' && result.suspiciousEvents > 0 && (
+                  <div className="text-xs text-red-600">
+                    Suspicious: {result.suspiciousEvents} events
+                  </div>
+                )}
+                {/* Show high violation warning for typing */}
+                {key === 'typingDetection' && result.violations > 10 && (
+                  <div className="text-xs text-red-600 font-medium bg-red-50 px-1 py-0.5 rounded mt-1">
+                    ⚠️ High violations: {result.violations}
+                  </div>
+                )}
+                {/* Show tab switching metrics */}
+                {key === 'tabSwitching' && result.switchCount > 0 && (
+                  <div className="text-xs text-purple-600">
+                    Switches: {result.switchCount} (30s)
+                  </div>
+                )}
+                {key === 'tabSwitching' && result.totalSwitches > 0 && (
+                  <div className="text-xs text-purple-600">
+                    Total: {result.totalSwitches} switches
+                  </div>
+                )}
+                {key === 'tabSwitching' && result.detected && (
+                  <div className="text-xs text-red-600 font-medium bg-red-50 px-1 py-0.5 rounded mt-1">
+                    ⚠️ Tab switching detected!
+                  </div>
+                )}
+                {/* Show audio availability status */}
+                {key === 'audioAnalysis' && (
+                  <div className="text-xs text-gray-400">
+                    {result.audioAvailable ? 'Audio: Available' : 'Audio: Not Available'}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* Enhanced Alerts with Severity */}
+          {alerts.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="font-semibold text-sm">Detection Alerts</h3>
+              {alerts.slice(-3).map((alert) => (
+                <Alert key={alert.id} className={`border ${getSeverityColor(alert.severity)}`}>
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <AlertDescription className="text-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <span className="break-words">{alert.message}</span>
+                      <button
+                        onClick={() => clearAlert(alert.id)}
+                        className="text-xs text-yellow-600 hover:text-yellow-800 self-start sm:self-auto"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                    <div className="text-xs text-yellow-600 mt-1">
+                      {new Date(alert.timestamp).toLocaleTimeString()} - Risk: {Math.round(alert.riskScore)}%
+                    </div>
+                    {alert.severity && (
+                      <div className="text-xs text-yellow-600">
+                        Severity: {alert.severity.toUpperCase()}
+                      </div>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              ))}
+            </div>
+          )}
+        </>
       )}
-
       {/* Hidden canvas for image processing */}
       <canvas 
         ref={canvasRef} 

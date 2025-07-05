@@ -1,8 +1,8 @@
 "use client";
 import Webcam from 'react-webcam';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Mic, StopCircle, RefreshCw, Save, Loader2, Languages, Shield } from 'lucide-react';
+import { Mic, StopCircle, RefreshCw, Save, Loader2, Languages, Shield, Eye, EyeOff, AlertTriangle, Monitor, Activity, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { chatSession } from '@/utils/OpenAIModel';
 import { db } from '@/utils/db';
@@ -13,6 +13,10 @@ import { useReactMediaRecorder } from 'react-media-recorder';
 import { transcribeAudio } from '@/utils/OpenAIModel';
 import { eq, and } from 'drizzle-orm';
 import CheatingDetection from './CheatingDetection';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Alert } from '@/components/ui/alert';
 
 function RecordAnswerSection({ 
   mockInterviewQuestion, 
@@ -45,11 +49,14 @@ function RecordAnswerSection({
   const [cheatingAlerts, setCheatingAlerts] = useState([]);
   const [cheatingRisk, setCheatingRisk] = useState(0);
   const [showCheatingDetection, setShowCheatingDetection] = useState(false);
+  const [showCheatingDetails, setShowCheatingDetails] = useState(false);
+  const [showLandmarks, setShowLandmarks] = useState(false);
   
   const webcamRef = useRef(null);
   const { user } = useUser();
   const MIN_ANSWER_LENGTH = 10;
   const cheatingDetectionRef = useRef(null);
+  const landmarkCanvasRef = useRef(null);
 
   // Initialize with existing answer if available
   useEffect(() => {
@@ -223,167 +230,76 @@ function RecordAnswerSection({
   };
 
   const handleSubmitAnswer = async () => {
-    if (userAnswer.trim().length < MIN_ANSWER_LENGTH) {
-      toast.warning(`Please provide a more detailed answer (minimum ${MIN_ANSWER_LENGTH} characters)`);
+    if (!userAnswer.trim() || userAnswer.trim().length < MIN_ANSWER_LENGTH) {
+      toast.error(`Answer must be at least ${MIN_ANSWER_LENGTH} characters long`);
       return;
     }
 
-    if (!sessionId) {
-      toast.error('Session not initialized');
-      return;
-    }
-
-    setLoading(true);
-    setIsProcessing(true);
-    
     try {
-      const [feedback, followUpAnalysis] = await Promise.all([
-        generateFeedback(),
-        generateFollowUpAnalysis()
-      ]);
+      setLoading(true);
+      setIsProcessing(true);
 
-      setFeedback(feedback);
-      setFollowUpAnalysis(followUpAnalysis);
-
-      const newRetryCount = retryCount + 1;
-      setRetryCount(newRetryCount);
-
-      // Check if answer already exists for this question and session
-      const existingAnswer = await db.select().from(UserAnswer)
-        .where(and(
-          eq(UserAnswer.mockIdRef, interviewData?.mockId),
-          eq(UserAnswer.sessionId, sessionId),
-          eq(UserAnswer.questionIndex, activeQuestionIndex)
-        ));
-
-      if (existingAnswer.length > 0) {
-        // Update existing answer
-        await db.update(UserAnswer)
-          .set({
-            userAns: userAnswer,
-            feedback: feedback?.feedback || "",
-            rating: feedback?.rating || 0,
-            suggestions: feedback?.suggestions?.join(', ') || "",
-            needsFollowUp: followUpAnalysis?.needsFollowUp || false,
-            reason: followUpAnalysis?.reason || "",
-            suggestedFollowUp: followUpAnalysis?.suggestedFollowUp || "",
-            audioRecording: audioBlob ? await blobToBase64(audioBlob) : null,
-            language: detectedLanguage || 'mixed',
-            isAnswered: true,
-            isSkipped: false,
-            retryCount: newRetryCount,
-            lastAttemptAt: new Date(),
-            updatedAt: new Date(),
-            // Add detailed evaluation data
-            detailedEvaluation: feedback?.detailedEvaluation || null,
-            evaluationScore: feedback?.evaluationScore || null,
-            detailedScores: feedback?.detailedScores || null,
-            combinedScore: feedback?.combinedScore || null,
-            overallAssessment: feedback?.overallAssessment || null
-          })
-          .where(eq(UserAnswer.id, existingAnswer[0].id));
-      } else {
-        // Insert new answer
-        await db.insert(UserAnswer).values({
-          mockIdRef: interviewData?.mockId,
-          question: mockInterviewQuestion[activeQuestionIndex]?.question,
-          questionIndex: activeQuestionIndex,
-          sessionId: sessionId,
-          userAns: userAnswer,
-          feedback: feedback?.feedback || "",
-          rating: feedback?.rating || 0,
-          suggestions: feedback?.suggestions?.join(', ') || "",
-          userEmail: user?.primaryEmailAddress?.emailAddress,
-          createdAt: moment().format('DD-MM-YYYY'),
-          needsFollowUp: followUpAnalysis?.needsFollowUp || false,
-          reason: followUpAnalysis?.reason || "",
-          suggestedFollowUp: followUpAnalysis?.suggestedFollowUp || "",
-          interview_type: interviewType,
-          audioRecording: audioBlob ? await blobToBase64(audioBlob) : null,
-          language: detectedLanguage || 'mixed',
-          isAnswered: true,
-          isSkipped: false,
-          retryCount: newRetryCount,
-          lastAttemptAt: new Date(),
-          updatedAt: new Date(),
-          // Add detailed evaluation data
-          detailedEvaluation: feedback?.detailedEvaluation || null,
-          evaluationScore: feedback?.evaluationScore || null,
-          detailedScores: feedback?.detailedScores || null,
-          combinedScore: feedback?.combinedScore || null,
-          overallAssessment: feedback?.overallAssessment || null
-        });
+      // Generate feedback
+      const feedbackResult = await generateFeedback();
+      if (feedbackResult) {
+        setFeedback(feedbackResult);
       }
 
-      // Notify parent component to reload answers
-      if (onAnswerSubmitted) {
-        onAnswerSubmitted(sessionId);
+      // Generate follow-up analysis
+      const followUpResult = await generateFollowUpAnalysis();
+      if (followUpResult) {
+        setFollowUpAnalysis(followUpResult);
       }
 
-      // Save cheating detection data to database
+      // Save cheating detection data
       const cheatingData = cheatingDetectionRef.current ? {
+        overallRisk: cheatingRisk,
         alerts: cheatingAlerts,
-        riskScore: cheatingRisk,
         detectionHistory: cheatingDetectionRef.current.getDetectionHistory ? cheatingDetectionRef.current.getDetectionHistory() : [],
         enhancedMetrics: cheatingDetectionRef.current.getEnhancedMetrics ? cheatingDetectionRef.current.getEnhancedMetrics() : {},
-        severityLevel: cheatingRisk > 70 ? 'high' : cheatingRisk > 30 ? 'medium' : 'low',
-        detectionSettings: {
-          detectionInterval: 2000,
-          confidenceThreshold: 0.75,
-          maxViolations: 5,
-          alertCooldown: 10000,
-          faceDetectionEnabled: true,
-          deviceDetectionEnabled: true,
-          movementAnalysisEnabled: true,
-          audioAnalysisEnabled: true,
-          tabSwitchingDetectionEnabled: true,
-          typingDetectionEnabled: true
-        }
-      } : {
-        alerts: cheatingAlerts,
-        riskScore: cheatingRisk,
-        detectionHistory: [],
-        enhancedMetrics: {},
-        severityLevel: cheatingRisk > 70 ? 'high' : cheatingRisk > 30 ? 'medium' : 'low',
-        detectionSettings: {}
-      };
+        sessionId: sessionId,
+        questionIndex: activeQuestionIndex,
+        timestamp: new Date().toISOString()
+      } : null;
 
-      await saveCheatingDetectionData(cheatingData);
-
-      // If this is the last question, also trigger a final session save
-      const totalQuestions = mockInterviewQuestion?.length || 0;
-      if (activeQuestionIndex === totalQuestions - 1) {
-        try {
-          const finalResponse = await fetch('/api/session-cheating-detection/end', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              sessionId: sessionId,
-              mockId: sessionId.split('_')[0],
-              finalDetectionData: {
-                sessionCompleted: true,
-                totalQuestions: totalQuestions,
-                answeredQuestions: 1, // This will be updated by the end API
-                skippedQuestions: 0,
-                sessionDuration: Date.now() - (sessionId ? parseInt(sessionId.split('_')[1]) : Date.now())
-              }
-            })
-          });
-
-          if (finalResponse.ok) {
-            console.log('Final session cheating detection data saved');
-          }
-        } catch (error) {
-          console.error('Error saving final session data:', error);
-        }
+      if (cheatingData) {
+        await saveCheatingDetectionData(cheatingData);
       }
 
-      toast.success(newRetryCount > 1 ? 'Answer updated successfully' : 'Answer and feedback saved successfully');
+      // Save answer to database
+      const question = mockInterviewQuestion[activeQuestionIndex];
+      const answerData = {
+        mockIdRef: interviewData.mockId,
+        question: question.question,
+        questionIndex: activeQuestionIndex,
+        sessionId: sessionId,
+        userEmail: userEmail,
+        userAns: userAnswer,
+        isSkipped: false,
+        isAnswered: true,
+        rating: feedbackResult?.rating?.toString() || '5',
+        feedback: feedbackResult?.feedback || 'No feedback available',
+        suggestions: feedbackResult?.suggestions && Array.isArray(feedbackResult.suggestions) ? feedbackResult.suggestions.join(', ') : '',
+        cheatingDetection: cheatingData,
+        createdAt: new Date().toISOString(),
+        lastAttemptAt: new Date(),
+        updatedAt: new Date(),
+        retryCount: retryCount
+      };
+
+      await db.insert(UserAnswer).values(answerData);
+
+      // Reload answers
+      if (onAnswerSubmitted) {
+        await onAnswerSubmitted();
+      }
+
+      toast.success('Answer saved successfully!');
+      setRetryCount(prev => prev + 1);
+
     } catch (error) {
-      console.error("Submission failed", error);
-      toast.error("Failed to save your answer");
+      console.error('Error saving answer:', error);
+      toast.error('Failed to save answer');
     } finally {
       setLoading(false);
       setIsProcessing(false);
@@ -394,14 +310,10 @@ function RecordAnswerSection({
     setUserAnswer('');
     setFeedback(null);
     setFollowUpAnalysis(null);
-    setAudioBlob(null);
     clearBlobUrl();
-    if (isRecording) {
-      stopAudioRecording();
-    }
+    setRetryCount(prev => prev + 1);
   };
 
-  // Helper functions
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -409,28 +321,20 @@ function RecordAnswerSection({
   };
 
   const blobToBase64 = (blob) => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
   };
 
-  // Language detection helper
   const containsArabic = (text) => {
     return /[\u0600-\u06FF]/.test(text);
   };
 
-  // Cheating detection handlers
   const handleCheatingDetected = (alert) => {
-    setCheatingAlerts(prev => [...prev, alert]);
-    toast.warning(`Cheating detected: ${alert.message}`, {
-      duration: 5000,
-      action: {
-        label: 'View Details',
-        onClick: () => setShowCheatingDetection(true)
-      }
-    });
+    setCheatingAlerts(prev => [...prev, { ...alert, id: Date.now() }]);
   };
 
   const handleCheatingResolved = (alertId) => {
@@ -441,21 +345,413 @@ function RecordAnswerSection({
     setCheatingRisk(risk);
   };
 
-  // Save cheating detection data to database - now using session-level API
+  const drawLandmarks = useCallback((landmarks, videoElement) => {
+    if (!landmarkCanvasRef.current || !showLandmarks) return;
+    
+    const canvas = landmarkCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    
+    // Get the video's display size
+    const videoRect = videoElement.getBoundingClientRect();
+    canvas.width = videoRect.width;
+    canvas.height = videoRect.height;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if (!landmarks) return;
+    
+    // Calculate scale factors
+    const scaleX = canvas.width / videoElement.videoWidth;
+    const scaleY = canvas.height / videoElement.videoHeight;
+    
+    // Helper functions
+    const scaleXCoord = (x) => x * scaleX;
+    const scaleYCoord = (y) => y * scaleY;
+    
+    // Draw all 68 landmarks
+    const points = landmarks.positions;
+    
+    // Draw different landmark groups with different colors
+    ctx.lineWidth = 2;
+    
+    // Jaw line (points 0-16)
+    ctx.strokeStyle = '#FF6B6B';
+    ctx.fillStyle = '#FF6B6B';
+    for (let i = 0; i < 17; i++) {
+      const point = points[i];
+      const scaledX = scaleXCoord(point.x);
+      const scaledY = scaleYCoord(point.y);
+      ctx.beginPath();
+      ctx.arc(scaledX, scaledY, 3, 0, 2 * Math.PI);
+      ctx.fill();
+      if (i > 0) {
+        const prevPoint = points[i-1];
+        const prevScaledX = scaleXCoord(prevPoint.x);
+        const prevScaledY = scaleYCoord(prevPoint.y);
+        ctx.beginPath();
+        ctx.moveTo(prevScaledX, prevScaledY);
+        ctx.lineTo(scaledX, scaledY);
+        ctx.stroke();
+      }
+    }
+    
+    // Right eyebrow (points 17-21)
+    ctx.strokeStyle = '#4ECDC4';
+    ctx.fillStyle = '#4ECDC4';
+    for (let i = 17; i < 22; i++) {
+      const point = points[i];
+      const scaledX = scaleXCoord(point.x);
+      const scaledY = scaleYCoord(point.y);
+      ctx.beginPath();
+      ctx.arc(scaledX, scaledY, 3, 0, 2 * Math.PI);
+      ctx.fill();
+      if (i > 17) {
+        const prevPoint = points[i-1];
+        const prevScaledX = scaleXCoord(prevPoint.x);
+        const prevScaledY = scaleYCoord(prevPoint.y);
+        ctx.beginPath();
+        ctx.moveTo(prevScaledX, prevScaledY);
+        ctx.lineTo(scaledX, scaledY);
+        ctx.stroke();
+      }
+    }
+    
+    // Left eyebrow (points 22-26)
+    for (let i = 22; i < 27; i++) {
+      const point = points[i];
+      const scaledX = scaleXCoord(point.x);
+      const scaledY = scaleYCoord(point.y);
+      ctx.beginPath();
+      ctx.arc(scaledX, scaledY, 3, 0, 2 * Math.PI);
+      ctx.fill();
+      if (i > 22) {
+        const prevPoint = points[i-1];
+        const prevScaledX = scaleXCoord(prevPoint.x);
+        const prevScaledY = scaleYCoord(prevPoint.y);
+        ctx.beginPath();
+        ctx.moveTo(prevScaledX, prevScaledY);
+        ctx.lineTo(scaledX, scaledY);
+        ctx.stroke();
+      }
+    }
+    
+    // Nose (points 27-35)
+    ctx.strokeStyle = '#45B7D1';
+    ctx.fillStyle = '#45B7D1';
+    for (let i = 27; i < 36; i++) {
+      const point = points[i];
+      const scaledX = scaleXCoord(point.x);
+      const scaledY = scaleYCoord(point.y);
+      ctx.beginPath();
+      ctx.arc(scaledX, scaledY, 3, 0, 2 * Math.PI);
+      ctx.fill();
+      if (i > 27) {
+        const prevPoint = points[i-1];
+        const prevScaledX = scaleXCoord(prevPoint.x);
+        const prevScaledY = scaleYCoord(prevPoint.y);
+        ctx.beginPath();
+        ctx.moveTo(prevScaledX, prevScaledY);
+        ctx.lineTo(scaledX, scaledY);
+        ctx.stroke();
+      }
+    }
+    
+    // Right eye (points 36-41)
+    ctx.strokeStyle = '#96CEB4';
+    ctx.fillStyle = '#96CEB4';
+    for (let i = 36; i < 42; i++) {
+      const point = points[i];
+      const scaledX = scaleXCoord(point.x);
+      const scaledY = scaleYCoord(point.y);
+      ctx.beginPath();
+      ctx.arc(scaledX, scaledY, 3, 0, 2 * Math.PI);
+      ctx.fill();
+      if (i > 36) {
+        const prevPoint = points[i-1];
+        const prevScaledX = scaleXCoord(prevPoint.x);
+        const prevScaledY = scaleYCoord(prevPoint.y);
+        ctx.beginPath();
+        ctx.moveTo(prevScaledX, prevScaledY);
+        ctx.lineTo(scaledX, scaledY);
+        ctx.stroke();
+      }
+    }
+    // Close the eye circle
+    const lastEyePoint = points[41];
+    const firstEyePoint = points[36];
+    ctx.beginPath();
+    ctx.moveTo(scaleXCoord(lastEyePoint.x), scaleYCoord(lastEyePoint.y));
+    ctx.lineTo(scaleXCoord(firstEyePoint.x), scaleYCoord(firstEyePoint.y));
+    ctx.stroke();
+    
+    // Left eye (points 42-47)
+    for (let i = 42; i < 48; i++) {
+      const point = points[i];
+      const scaledX = scaleXCoord(point.x);
+      const scaledY = scaleYCoord(point.y);
+      ctx.beginPath();
+      ctx.arc(scaledX, scaledY, 3, 0, 2 * Math.PI);
+      ctx.fill();
+      if (i > 42) {
+        const prevPoint = points[i-1];
+        const prevScaledX = scaleXCoord(prevPoint.x);
+        const prevScaledY = scaleYCoord(prevPoint.y);
+        ctx.beginPath();
+        ctx.moveTo(prevScaledX, prevScaledY);
+        ctx.lineTo(scaledX, scaledY);
+        ctx.stroke();
+      }
+    }
+    // Close the eye circle
+    const lastLeftEyePoint = points[47];
+    const firstLeftEyePoint = points[42];
+    ctx.beginPath();
+    ctx.moveTo(scaleXCoord(lastLeftEyePoint.x), scaleYCoord(lastLeftEyePoint.y));
+    ctx.lineTo(scaleXCoord(firstLeftEyePoint.x), scaleYCoord(firstLeftEyePoint.y));
+    ctx.stroke();
+    
+    // Mouth (points 48-67)
+    ctx.strokeStyle = '#FFEAA7';
+    ctx.fillStyle = '#FFEAA7';
+    for (let i = 48; i < 68; i++) {
+      const point = points[i];
+      const scaledX = scaleXCoord(point.x);
+      const scaledY = scaleYCoord(point.y);
+      ctx.beginPath();
+      ctx.arc(scaledX, scaledY, 3, 0, 2 * Math.PI);
+      ctx.fill();
+      if (i > 48) {
+        const prevPoint = points[i-1];
+        const prevScaledX = scaleXCoord(prevPoint.x);
+        const prevScaledY = scaleYCoord(prevPoint.y);
+        ctx.beginPath();
+        ctx.moveTo(prevScaledX, prevScaledY);
+        ctx.lineTo(scaledX, scaledY);
+        ctx.stroke();
+      }
+    }
+    
+    // Draw eye centers and gaze direction
+    if (landmarks.getLeftEye && landmarks.getRightEye) {
+      const leftEye = landmarks.getLeftEye();
+      const rightEye = landmarks.getRightEye();
+      
+      // Calculate eye centers
+      const leftEyeCenter = leftEye.reduce((acc, point) => ({
+        x: acc.x + point.x,
+        y: acc.y + point.y
+      }), { x: 0, y: 0 });
+      leftEyeCenter.x /= leftEye.length;
+      leftEyeCenter.y /= leftEye.length;
+      
+      const rightEyeCenter = rightEye.reduce((acc, point) => ({
+        x: acc.x + point.x,
+        y: acc.y + point.y
+      }), { x: 0, y: 0 });
+      rightEyeCenter.x /= rightEye.length;
+      rightEyeCenter.y /= rightEye.length;
+      
+      // Draw eye centers (scaled)
+      ctx.fillStyle = '#FF0000';
+      ctx.beginPath();
+      ctx.arc(scaleXCoord(leftEyeCenter.x), scaleYCoord(leftEyeCenter.y), 5, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(scaleXCoord(rightEyeCenter.x), scaleYCoord(rightEyeCenter.y), 5, 0, 2 * Math.PI);
+      ctx.fill();
+      
+      // Draw gaze direction line (scaled)
+      const eyeCenter = {
+        x: (leftEyeCenter.x + rightEyeCenter.x) / 2,
+        y: (leftEyeCenter.y + rightEyeCenter.y) / 2
+      };
+      const videoCenter = { x: canvas.width / 2, y: canvas.height / 2 };
+      
+      // Calculate gaze direction and distance
+      const gazeVector = {
+        x: eyeCenter.x - videoCenter.x,
+        y: eyeCenter.y - videoCenter.y
+      };
+      const gazeDistance = Math.sqrt(gazeVector.x * gazeVector.x + gazeVector.y * gazeVector.y);
+      const normalizedGaze = {
+        x: gazeVector.x / gazeDistance,
+        y: gazeVector.y / gazeDistance
+      };
+      
+      // Draw gaze direction with color based on distance
+      const maxDistance = Math.min(canvas.width, canvas.height) * 0.4;
+      const gazeIntensity = Math.min(1.0, gazeDistance / maxDistance);
+      
+      // Color based on gaze intensity (green = looking at center, red = looking away)
+      const red = Math.floor(255 * gazeIntensity);
+      const green = Math.floor(255 * (1 - gazeIntensity));
+      ctx.strokeStyle = `rgb(${red}, ${green}, 0)`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(scaleXCoord(eyeCenter.x), scaleYCoord(eyeCenter.y));
+      ctx.lineTo(videoCenter.x, videoCenter.y);
+      ctx.stroke();
+      
+      // Draw center target with size based on gaze accuracy
+      const targetSize = 8 + (gazeIntensity * 4);
+      ctx.fillStyle = `rgb(${green}, ${red}, 0)`;
+      ctx.beginPath();
+      ctx.arc(videoCenter.x, videoCenter.y, targetSize, 0, 2 * Math.PI);
+      ctx.fill();
+      
+      // Draw gaze zone indicator
+      const zone = calculateGazeZone(eyeCenter, videoElement);
+      ctx.fillStyle = '#0000FF';
+      ctx.font = '14px Arial';
+      ctx.fillText(`Zone: ${zone}`, 10, 20);
+      ctx.fillText(`Distance: ${Math.round(gazeDistance)}`, 10, 40);
+      ctx.fillText(`Intensity: ${Math.round(gazeIntensity * 100)}%`, 10, 60);
+      
+      // Draw device detection landmarks if available
+      if (landmarks.deviceDetection) {
+        const deviceData = landmarks.deviceDetection;
+        
+        // Draw bright areas (yellow dots)
+        ctx.fillStyle = '#FFFF00';
+        ctx.globalAlpha = 0.6;
+        for (const area of deviceData.brightAreas) {
+          const scaledX = scaleXCoord(area.x);
+          const scaledY = scaleYCoord(area.y);
+          ctx.beginPath();
+          ctx.arc(scaledX, scaledY, 2, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+        
+        // Draw blue areas (blue dots)
+        ctx.fillStyle = '#0080FF';
+        for (const area of deviceData.blueAreas) {
+          const scaledX = scaleXCoord(area.x);
+          const scaledY = scaleYCoord(area.y);
+          ctx.beginPath();
+          ctx.arc(scaledX, scaledY, 2, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+        
+        // Draw white areas (white dots)
+        ctx.fillStyle = '#FFFFFF';
+        for (const area of deviceData.whiteAreas) {
+          const scaledX = scaleXCoord(area.x);
+          const scaledY = scaleYCoord(area.y);
+          ctx.beginPath();
+          ctx.arc(scaledX, scaledY, 2, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+        
+        // Draw edge points (red dots)
+        ctx.fillStyle = '#FF0000';
+        for (const point of deviceData.edgePoints) {
+          const scaledX = scaleXCoord(point.x);
+          const scaledY = scaleYCoord(point.y);
+          ctx.beginPath();
+          ctx.arc(scaledX, scaledY, 1, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+        
+        // Draw detected device clusters (circles)
+        ctx.strokeStyle = '#FF00FF';
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.8;
+        for (const cluster of deviceData.detectedRegions) {
+          const scaledX = scaleXCoord(cluster.center.x);
+          const scaledY = scaleYCoord(cluster.center.y);
+          const radius = Math.min(20, cluster.size / 2);
+          
+          ctx.beginPath();
+          ctx.arc(scaledX, scaledY, radius, 0, 2 * Math.PI);
+          ctx.stroke();
+          
+          // Draw cluster info
+          ctx.fillStyle = '#FF00FF';
+          ctx.font = '12px Arial';
+          const typesText = cluster.types && Array.isArray(cluster.types) ? cluster.types.join(',') : 'unknown';
+          ctx.fillText(typesText, scaledX + radius + 5, scaledY);
+        }
+        
+        // Reset alpha
+        ctx.globalAlpha = 1.0;
+        
+        // Draw YOLO detection boxes if available
+        if (landmarks.yoloDetections && landmarks.yoloDetections.length > 0) {
+          ctx.strokeStyle = '#FF0000';
+          ctx.lineWidth = 3;
+          ctx.globalAlpha = 0.8;
+          
+          for (const detection of landmarks.yoloDetections) {
+            const [x1, y1, x2, y2] = detection.bbox;
+            const scaledX1 = scaleXCoord(x1);
+            const scaledY1 = scaleYCoord(y1);
+            const scaledX2 = scaleXCoord(x2);
+            const scaledY2 = scaleYCoord(y2);
+            
+            // Draw bounding box
+            ctx.strokeRect(scaledX1, scaledY1, scaledX2 - scaledX1, scaledY2 - scaledY1);
+            
+            // Draw confidence label
+            ctx.fillStyle = '#FF0000';
+            ctx.font = '12px Arial';
+            ctx.fillText(`${Math.round(detection.confidence * 100)}%`, scaledX1, scaledY1 - 5);
+            
+            // Draw device type label
+            ctx.fillText(`Mobile Device`, scaledX1, scaledY2 + 15);
+          }
+          
+          ctx.globalAlpha = 1.0;
+        }
+        
+        // Draw device detection info
+        if (landmarks.deviceDetected) {
+          ctx.fillStyle = '#FF0000';
+          ctx.font = '16px Arial';
+          ctx.fillText(`DEVICE DETECTED: ${landmarks.deviceType || 'unknown'}`, 10, 80);
+          ctx.fillText(`Confidence: ${Math.round(landmarks.deviceConfidence * 100)}%`, 10, 100);
+          
+          // Show YOLO-only mode
+          if (landmarks.yoloOnly) {
+            ctx.fillText(`YOLO-ONLY MODE`, 10, 120);
+          } else if (landmarks.backendUsed) {
+            ctx.fillText(`Backend: ${landmarks.backendUsed.toUpperCase()}`, 10, 120);
+          }
+        }
+      }
+    }
+  }, [showLandmarks]);
+
+  // Calculate gaze zone (center, left, right, top, bottom)
+  const calculateGazeZone = (eyeCenter, videoElement) => {
+    const centerX = videoElement.videoWidth / 2;
+    const centerY = videoElement.videoHeight / 2;
+    const threshold = Math.min(videoElement.videoWidth, videoElement.videoHeight) * 0.2;
+    
+    const dx = eyeCenter.x - centerX;
+    const dy = eyeCenter.y - centerY;
+    
+    if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) {
+      return 'center';
+    } else if (Math.abs(dx) > Math.abs(dy)) {
+      return dx > 0 ? 'right' : 'left';
+    } else {
+      return dy > 0 ? 'bottom' : 'top';
+    }
+  };
+
+  const handleLandmarkData = useCallback((landmarks) => {
+    if (landmarks && webcamRef.current) {
+      drawLandmarks(landmarks, webcamRef.current.video);
+    }
+  }, [drawLandmarks]);
+
   const saveCheatingDetectionData = async (cheatingData) => {
     try {
       // Extract mockId from sessionId (format: email_mockId_timestamp_randomId)
       const sessionParts = sessionId.split('_');
       const mockId = sessionParts[1]; // mockId is the second part
-      
-      console.log('Saving session-level cheating detection data:', {
-        sessionId,
-        mockId: mockId,
-        sessionParts: sessionParts,
-        riskScore: cheatingData.riskScore || cheatingRisk,
-        alertsCount: cheatingData.alerts?.length || cheatingAlerts.length,
-        detectionHistoryLength: cheatingData.detectionHistory?.length || 0
-      });
+      console.log('Saving session-level cheating detection data:', { sessionId, mockId: mockId, sessionParts: sessionParts, riskScore: cheatingData.riskScore || cheatingRisk, alertsCount: cheatingData.alerts?.length || cheatingAlerts.length, detectionHistoryLength: cheatingData.detectionHistory?.length || 0 });
 
       // First, try to create the session if it doesn't exist
       try {
@@ -482,7 +778,6 @@ function RecordAnswerSection({
             }
           })
         });
-
         if (createResponse.ok) {
           console.log('Session created/updated successfully');
         } else {
@@ -533,322 +828,342 @@ function RecordAnswerSection({
       return result;
     } catch (error) {
       console.error('Error saving session-level cheating detection data:', error);
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
+      console.error('Error details:', { message: error.message, stack: error.stack, name: error.name });
       // Don't throw error to avoid breaking the main save operation
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-6 bg-white rounded-2xl shadow-lg border max-w-2xl mx-auto">
-      {/* Session Info */}
-      {sessionId && (
-        <div className="w-full mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-blue-700 font-medium">Session ID: {sessionId.split('_').slice(-2).join('_')}</span>
-            {retryCount > 0 && (
-              <span className="text-blue-600">Retry #{retryCount}</span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Webcam Preview */}
-      <div className={`relative mb-6 w-full aspect-video rounded-xl overflow-hidden border-4 transition-all ${isRecording ? 'border-[#be3144] shadow-lg' : 'border-gray-200'}`}>
-        <Webcam
-          ref={webcamRef}
-          audio={false}
-          mirrored={true}
-          screenshotFormat="image/jpeg"
-          videoConstraints={{ facingMode: 'user' }}
-          className="w-full h-full object-cover rounded-xl"
-          onUserMediaError={(error) => {
-            console.error('Webcam error:', error);
-            toast.error('Could not access camera or microphone');
-          }}
-          onUserMedia={() => {
-            console.log('Webcam and microphone access granted');
-          }}
-        />
-        {isRecording && (
-          <div className="absolute top-2 left-2 bg-red-500 text-white px-3 py-1 rounded-md text-sm flex items-center shadow-lg animate-pulse">
-            <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
-            REC {formatTime(recordingTime)}
-            {isTranscribing && (
-              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Cheating Detection Section */}
-      <div className="w-full mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-green-600" />
-            <h3 className="font-semibold text-sm text-green-700">Enhanced Cheating Detection</h3>
-            <span className="text-xs text-green-600">
-              (Recording: {isRecording ? 'Yes' : 'No'}, Risk: {Math.round(cheatingRisk)}%)
-            </span>
-          </div>
-          <div className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">
-            Auto-Enabled
-          </div>
-        </div>
-        
-        {/* Always show basic detection status */}
-        <div className="p-3 bg-green-50 rounded-lg mb-2 border border-green-200">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-green-600" />
-              <span className="text-green-700 font-medium">
-                {isRecording ? 'Monitoring' : 'Ready to Monitor'}
-              </span>
-            </div>
-            <span className="text-green-600">Alerts: {cheatingAlerts.length}</span>
-          </div>
-        </div>
-        
-        {/* Always show cheating detection details */}
-        <CheatingDetection
-          webcamRef={webcamRef}
-          isRecording={isRecording}
-          onCheatingDetected={handleCheatingDetected}
-          onCheatingResolved={handleCheatingResolved}
-          onCheatingRiskUpdate={handleCheatingRiskUpdate}
-          sessionId={sessionId}
-          questionIndex={activeQuestionIndex}
-          interviewSettings={{
-            detectionInterval: 2000, // More frequent detection
-            confidenceThreshold: 0.75, // Higher confidence
-            maxViolations: 5, // More violations before high risk
-            alertCooldown: 10000, // Shorter cooldown
-            faceDetectionEnabled: true,
-            deviceDetectionEnabled: true,
-            movementAnalysisEnabled: true,
-            audioAnalysisEnabled: true,
-            tabSwitchingDetectionEnabled: true,
-            typingDetectionEnabled: true
-          }}
-          ref={cheatingDetectionRef}
-        />
-        
-        {/* Quick Risk Indicator */}
-        {!showCheatingDetection && cheatingRisk > 0 && (
-          <div className={`p-2 rounded-lg text-xs font-medium ${
-            cheatingRisk < 30 ? 'bg-green-100 text-green-700' :
-            cheatingRisk < 70 ? 'bg-yellow-100 text-yellow-700' :
-            'bg-red-100 text-red-700'
-          }`}>
-            Risk Level: {Math.round(cheatingRisk)}% - {cheatingAlerts.length} alerts
-          </div>
-        )}
-      </div>
-
-      {/* Language Selector */}
-      <div className="flex items-center gap-3 mb-4">
-        <Languages className="h-5 w-5 text-primary" />
-        <Button
-          variant={languageMode === 'auto' ? "default" : "outline"}
-          onClick={() => setLanguageMode('auto')}
-          size="sm"
-          className="rounded-full px-4"
-        >
-          Auto Detect
-        </Button>
-        <Button
-          variant={languageMode === 'en' ? "default" : "outline"}
-          onClick={() => setLanguageMode('en')}
-          size="sm"
-          className="rounded-full px-4"
-        >
-          English
-        </Button>
-        <Button
-          variant={languageMode === 'ar' ? "default" : "outline"}
-          onClick={() => setLanguageMode('ar')}
-          size="sm"
-          className="rounded-full px-4"
-        >
-          العربية
-        </Button>
-      </div>
-
-      {/* Follow-Up Section */}
-      {/* {followUpAnalysis?.needsFollowUp && (
-        <div className="w-full p-4 border rounded-lg bg-yellow-50 mb-4 animate-in fade-in">
-          <h2 className="text-lg font-semibold mb-2 text-red-600">Follow-Up Needed</h2>
-          <p className="text-sm mb-2"><strong>Reason:</strong> {followUpAnalysis.reason}</p>
-          <p className="text-sm mb-4"><strong>Suggested Question:</strong> {followUpAnalysis.suggestedFollowUp}</p>
-          <textarea
-            className="w-full p-2 border border-gray-300 rounded"
-            rows={2}
-            placeholder="Type your follow-up response here..."
-            value={followUpResponse}
-            onChange={(e) => setFollowUpResponse(e.target.value)}
-          />
-          <Button className="mt-2" onClick={() => toast.success('Follow-up response saved (mock)')}>
-            Submit Follow-Up
-          </Button>
-        </div>
-      )} */}
-
-      {/* Controls */}
-      <div className="flex flex-wrap gap-4 justify-center mb-4">
-        <Button
-          variant={isRecording ? "destructive" : "outline"}
-          className="gap-2 px-6 py-3 text-base font-semibold rounded-full shadow-sm hover:scale-105 transition"
-          onClick={handleStartStopRecording}
-          disabled={loading || isTranscribing}
-        >
-          {isRecording ? (
-            <>
-              <StopCircle className="h-5 w-5" />
-              <span className="animate-pulse">Stop Recording</span>
-            </>
-          ) : (
-            <>
-              <Mic className="h-5 w-5" />
-              <span>Record Answer</span>
-            </>
-          )}
-          {isTranscribing && <Loader2 className="h-4 w-4 animate-spin" />}
-        </Button>
-
-        <Button
-          variant="outline"
-          onClick={handleRetry}
-          disabled={isRecording || (!userAnswer && !feedback)}
-          className="px-6 py-3 rounded-full"
-        >
-          <RefreshCw className="h-5 w-5 mr-2" />
-          {retryCount > 0 ? 'Retry Again' : 'Retry'}
-        </Button>
-
-        <Button
-          onClick={handleSubmitAnswer}
-          disabled={loading || !userAnswer.trim() || userAnswer.trim().length < MIN_ANSWER_LENGTH}
-          className="gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-[#be3144] to-[#f05941] text-white font-semibold shadow-md hover:scale-105 hover:shadow-lg transition"
-        >
-          {loading ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <Save className="h-5 w-5" />
-          )}
-          {loading ? 'Processing...' : (retryCount > 0 ? 'Update Answer' : 'Save Answer')}
-        </Button>
-      </div>
-
-      {/* Recording Progress Bar */}
-      {isRecording && (
-        <div className="w-full max-w-2xl mb-2">
-          <div className="flex justify-between text-xs text-muted-foreground mb-1">
-            <span>Recording: {formatTime(recordingTime)}</span>
-            <span>Max: 2 min</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="h-2 rounded-full transition-all duration-300 bg-red-500"
-              style={{ width: `${Math.min(100, (recordingTime / 120) * 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Answer Length */}
-      <div className="w-full max-w-2xl mb-2">
-        <div className="flex justify-between text-sm text-muted-foreground mb-1">
-          <span>Answer length: {userAnswer.length} characters</span>
-          <span>{MIN_ANSWER_LENGTH} minimum</span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div
-            className="h-2 rounded-full transition-all duration-300"
-            style={{
-              width: `${Math.min(100, (userAnswer.length / MIN_ANSWER_LENGTH) * 100)}%`,
-              backgroundColor: userAnswer.length >= MIN_ANSWER_LENGTH ? '#10B981' : '#3B82F6'
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Transcription Display */}
-      <div className="w-full max-w-2xl mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-lg font-semibold">Your Answer:</h3>
-          {detectedLanguage && (
-            <span className="text-sm text-muted-foreground">
-              Detected: {detectedLanguage === 'en' ? 'English' :
-                detectedLanguage === 'ar' ? 'Arabic' : 'Mixed'}
-            </span>
-          )}
-        </div>
-        <div
-          className={`bg-gray-50 p-5 rounded-xl min-h-32 border-2 ${containsArabic(userAnswer) ? 'text-right' : 'text-left'} font-medium text-lg tracking-wide`}
-          dir={containsArabic(userAnswer) ? 'rtl' : 'ltr'}
-        >
-          {userAnswer ? (
-            <p className="whitespace-pre-wrap">{userAnswer}</p>
-          ) : (
-            <p className="text-muted-foreground italic">
-              {isRecording ? "Recording in progress..." : "Your transcription will appear here"}
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Audio Player */}
-      {mediaBlobUrl && (
-        <div className="w-full max-w-2xl mb-4">
-          <h3 className="text-lg font-semibold mb-2">Recording:</h3>
-          <audio src={mediaBlobUrl} controls className="w-full rounded-lg" />
-        </div>
-      )}
-
-      {/* Feedback */}
-      {/* {feedback && (
-        <div className="w-full max-w-2xl space-y-4 animate-in fade-in">
-          <h3 className="text-lg font-semibold">Feedback:</h3>
-          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="flex items-center mb-2">
-              <span className="font-medium mr-2">Rating:</span>
-              <span className="bg-green-100 px-2 py-1 rounded-full text-sm">
-                {feedback.rating}/10
-              </span>
-              {feedback.transcriptionQuality && (
-                <span className="ml-2 text-sm">
-                  (Quality: {feedback.transcriptionQuality}/5)
-                </span>
-              )}
-              {feedback.language && (
-                <span className="ml-2 text-sm">
-                  (Language: {feedback.language})
-                </span>
-              )}
-            </div>
-            <div className="space-y-2">
-              <div>
-                <span className="font-medium">Feedback:</span>
-                <p className="text-sm mt-1">{feedback.feedback}</p>
-              </div>
-              {feedback.suggestions && feedback.suggestions.length > 0 && (
+    <TooltipProvider>
+      <div className="w-full max-w-4xl mx-auto space-y-6">
+        {/* Camera Section */}
+        <Card className="bg-white shadow-lg border-0">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Monitor className="h-6 w-6 text-gray-600" />
+                  {cheatingRisk > 0 && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse"></div>
+                  )}
+                </div>
                 <div>
-                  <span className="font-medium">Suggestions:</span>
-                  <ul className="text-sm mt-1 list-disc list-inside">
-                    {feedback.suggestions.map((suggestion, index) => (
-                      <li key={index}>{suggestion}</li>
-                    ))}
-                  </ul>
+                  <CardTitle className="text-lg text-gray-900">Interview Camera</CardTitle>
+                  <CardDescription className="text-gray-600">
+                    {cheatingRisk > 0 ? `${Math.round(cheatingRisk)}% risk detected` : 'Monitoring active'}
+                  </CardDescription>
+                </div>
+              </div>
+              
+              {/* Cheating Detection Toggle */}
+              <div className="flex items-center gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowCheatingDetails(!showCheatingDetails)}
+                      className="flex items-center gap-2"
+                    >
+                      {showCheatingDetails ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showCheatingDetails ? 'Hide' : 'Show'} Details
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{showCheatingDetails ? 'Hide cheating detection details' : 'Show cheating detection details'}</p>
+                  </TooltipContent>
+                </Tooltip>
+                
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowLandmarks(!showLandmarks)}
+                      className="flex items-center gap-2"
+                    >
+                      <MapPin className="w-4 h-4" />
+                      {showLandmarks ? 'Hide' : 'Show'} Landmarks
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{showLandmarks ? 'Hide facial landmarks' : 'Show facial landmarks'}</p>
+                  </TooltipContent>
+                </Tooltip>
+                
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowCheatingDetection(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Shield className="w-4 h-4" />
+                      Alerts
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>View cheating detection alerts</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </div>
+          </CardHeader>
+          
+          <CardContent className="space-y-2">
+            {/* Webcam */}
+            <div className="relative w-full max-w-md mx-auto">
+              <Webcam
+                ref={webcamRef}
+                className="w-full rounded-lg shadow-md object-cover"
+                screenshotFormat="image/jpeg"
+                videoConstraints={{
+                  width: 640,
+                  height: 480,
+                  facingMode: "user"
+                }}
+              />
+              
+              {/* Recording Indicator */}
+              {isRecording && (
+                <div className="absolute top-4 right-4 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium animate-pulse">
+                  REC
                 </div>
               )}
+              
+              {/* Risk Level Indicator */}
+              {cheatingRisk > 0 && (
+                <div className={`absolute top-4 left-4 px-2 py-1 rounded-full text-xs font-medium text-white ${
+                  cheatingRisk < 30 ? 'bg-green-500' :
+                  cheatingRisk < 70 ? 'bg-yellow-500' : 'bg-red-500'
+                }`}>
+                  Risk: {Math.round(cheatingRisk)}%
+                </div>
+              )}
+              
+              {/* Landmark Overlay */}
+              <canvas 
+                ref={landmarkCanvasRef} 
+                className="absolute inset-0 w-full h-full pointer-events-none z-10 rounded-lg"
+              />
             </div>
+
+            {/* Cheating Detection Status */}
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-green-600" />
+                  <span className="text-green-600">Active</span>
+                </div>
+                <span className="text-gray-600">Alerts: {cheatingAlerts.length}</span>
+              </div>
+            </div>
+            
+            {/* Cheating Detection (always running, details toggled) */}
+            <CheatingDetection
+              webcamRef={webcamRef}
+              isRecording={isRecording}
+              onCheatingDetected={handleCheatingDetected}
+              onCheatingResolved={handleCheatingResolved}
+              onCheatingRiskUpdate={handleCheatingRiskUpdate}
+              onLandmarkData={handleLandmarkData}
+              sessionId={sessionId}
+              questionIndex={activeQuestionIndex}
+              interviewSettings={{
+                detectionInterval: 2000, // More frequent detection
+                confidenceThreshold: 0.75, // Higher confidence
+                maxViolations: 5, // More violations before high risk
+                alertCooldown: 10000, // Shorter cooldown
+                faceDetectionEnabled: true,
+                deviceDetectionEnabled: true,
+                movementAnalysisEnabled: true,
+                audioAnalysisEnabled: true,
+                tabSwitchingDetectionEnabled: true,
+                typingDetectionEnabled: true
+              }}
+              ref={cheatingDetectionRef}
+              showDetails={showCheatingDetails}
+            />
+            
+            {/* Quick Risk Indicator */}
+            {!showCheatingDetails && cheatingRisk > 0 && (
+              <Alert className="border-orange-200 bg-orange-50">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                <div className="text-orange-800">
+                  <div className="font-medium">Risk Level: {Math.round(cheatingRisk)}%</div>
+                  <div className="text-sm">{cheatingAlerts.length} alerts detected</div>
+                </div>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Language Selector */}
+        <div className="flex items-center justify-between mb-2 gap-2 w-full flex-wrap">
+          {/* Language Selector - Left */}
+          <div className="flex items-center gap-2">
+            <Languages className="h-4 w-4 text-primary mr-1" />
+            <Button
+              variant={languageMode === 'auto' ? "default" : "outline"}
+              onClick={() => setLanguageMode('auto')}
+              size="icon"
+              className={`rounded-full px-3 py-1 text-xs font-medium min-w-[70px] ${languageMode === 'auto' ? 'bg-[#be3144] text-white' : ''}`}
+            >
+              Auto Detect
+            </Button>
+            <Button
+              variant={languageMode === 'en' ? "default" : "outline"}
+              onClick={() => setLanguageMode('en')}
+              size="icon"
+              className={`rounded-full px-3 py-1 text-xs font-medium min-w-[70px] ${languageMode === 'en' ? 'bg-[#be3144] text-white' : ''}`}
+            >
+              English
+            </Button>
+            <Button
+              variant={languageMode === 'ar' ? "default" : "outline"}
+              onClick={() => setLanguageMode('ar')}
+              size="icon"
+              className={`rounded-full px-3 py-1 text-xs font-medium min-w-[70px] ${languageMode === 'ar' ? 'bg-[#be3144] text-white' : ''}`}
+            >
+              العربية
+            </Button>
+          </div>
+          {/* Action Buttons - Right */}
+          <div className="flex gap-2">
+            <Button
+              variant={isRecording ? "destructive" : "outline"}
+              className="gap-1 px-4 py-2 text-xs font-semibold rounded-full shadow-sm"
+              onClick={handleStartStopRecording}
+              disabled={loading || isTranscribing}
+            >
+              {isRecording ? (
+                <>
+                  <StopCircle className="h-4 w-4" />
+                  <span className="animate-pulse">Stop</span>
+                </>
+              ) : (
+                <>
+                  <Mic className="h-4 w-4" />
+                  <span>Record</span>
+                </>
+              )}
+              {isTranscribing && <Loader2 className="h-3 w-3 animate-spin" />}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleRetry}
+              disabled={isRecording || (!userAnswer && !feedback)}
+              className="px-4 py-2 text-xs rounded-full"
+            >
+              <RefreshCw className="h-4 w-4 mr-1" />
+              {retryCount > 0 ? 'Retry' : 'Retry'}
+            </Button>
+            <Button
+              onClick={handleSubmitAnswer}
+              disabled={loading || !userAnswer.trim() || userAnswer.trim().length < MIN_ANSWER_LENGTH}
+              className="gap-1 px-4 py-2 rounded-full bg-gradient-to-r from-[#be3144] to-[#f05941] text-white text-xs font-semibold shadow-sm"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {loading ? 'Saving...' : (retryCount > 0 ? 'Update' : 'Save')}
+            </Button>
           </div>
         </div>
-      )} */}
-    </div>
+
+        {/* Recording Progress Bar */}
+        {isRecording && (
+          <div className="w-full max-w-2xl mb-2">
+            <div className="flex justify-between text-xs text-muted-foreground mb-1">
+              <span>Recording: {formatTime(recordingTime)}</span>
+              <span>Max: 2 min</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="h-2 rounded-full transition-all duration-300 bg-red-500"
+                style={{ width: `${Math.min(100, (recordingTime / 120) * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Transcription Display */}
+        <div className="w-full mb-2">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-semibold text-gray-800">Your Answer</span>
+            {detectedLanguage && (
+              <span className="text-xs text-muted-foreground">
+                {detectedLanguage === 'en' ? 'English' : detectedLanguage === 'ar' ? 'Arabic' : 'Mixed'}
+              </span>
+            )}
+          </div>
+          <div
+            className={`bg-gray-50 p-3 rounded-lg min-h-[60px] border text-sm ${containsArabic(userAnswer) ? 'text-right' : 'text-left'} font-medium`}
+            dir={containsArabic(userAnswer) ? 'rtl' : 'ltr'}
+          >
+            {userAnswer ? (
+              <p className="whitespace-pre-wrap">{userAnswer}</p>
+            ) : (
+              <span className="text-muted-foreground italic">
+                {isRecording ? "Recording..." : "Your transcription will appear here"}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Audio Player */}
+        {mediaBlobUrl && (
+          <div className="w-full max-w-2xl mb-4">
+            <h3 className="text-lg font-semibold mb-2">Recording:</h3>
+            <audio src={mediaBlobUrl} controls className="w-full rounded-lg" />
+          </div>
+        )}
+
+        {/* Feedback */}
+        {/* {feedback && (
+          <div className="w-full max-w-2xl space-y-4 animate-in fade-in">
+            <h3 className="text-lg font-semibold">Feedback:</h3>
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <div className="flex items-center mb-2">
+                <span className="font-medium mr-2">Rating:</span>
+                <span className="bg-green-100 px-2 py-1 rounded-full text-sm">
+                  {feedback.rating}/10
+                </span>
+                {feedback.transcriptionQuality && (
+                  <span className="ml-2 text-sm">
+                    (Quality: {feedback.transcriptionQuality}/5)
+                  </span>
+                )}
+                {feedback.language && (
+                  <span className="ml-2 text-sm">
+                    (Language: {feedback.language})
+                  </span>
+                )}
+              </div>
+              <div className="space-y-2">
+                <div>
+                  <span className="font-medium">Feedback:</span>
+                  <p className="text-sm mt-1">{feedback.feedback}</p>
+                </div>
+                {feedback.suggestions && feedback.suggestions.length > 0 && (
+                  <div>
+                    <span className="font-medium">Suggestions:</span>
+                    <ul className="text-sm mt-1 list-disc list-inside">
+                      {feedback.suggestions.map((suggestion, index) => (
+                        <li key={index}>{suggestion}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )} */}
+      </div>
+    </TooltipProvider>
   );
 }
 

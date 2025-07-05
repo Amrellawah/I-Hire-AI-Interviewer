@@ -1,6 +1,7 @@
 import moment from 'moment'
 import React from 'react'
 import VideoCandidateFeedbackDialog from './VideoCandidateFeedbackDialog'
+import ChatButton from './ChatButton'
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
@@ -240,9 +241,10 @@ function VideoCandidateList({ candidateList }) {
                         </div>
                       )}
                       
-                      {/* Enhanced Action Button */}
-                      <div className="pt-2 sm:pt-3">
+                      {/* Enhanced Action Buttons */}
+                      <div className="pt-2 sm:pt-3 flex items-center gap-3">
                         <VideoCandidateFeedbackDialog candidate={candidate} />
+                        <ChatButton candidate={candidate} />
                       </div>
                     </div>
                   </div>

@@ -2,7 +2,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Clock, AlertTriangle } from 'lucide-react';
+import { Clock, AlertTriangle, Pause, Play, Zap, Target, CheckCircle, SkipForward } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 
 const QuestionTimer = ({ 
   activeQuestionIndex, 
@@ -28,50 +31,27 @@ const QuestionTimer = ({
   // Timer countdown
   useEffect(() => {
     let interval = null;
-    
     if (isRunning && timeLeft > 0) {
       interval = setInterval(() => {
         setTimeLeft(prevTime => {
           const newTime = prevTime - 1;
-          
-          // Show warning when 30 seconds left
-          if (newTime === 30) {
-            setShowWarning(true);
-          }
-          
-          // Auto-submit when time expires
+          if (newTime === 30) setShowWarning(true);
           if (newTime === 0) {
             setIsExpired(true);
             setIsRunning(false);
-            if (onTimeExpired) {
-              onTimeExpired();
-            }
-            // Auto-move to next question after 2 seconds
+            if (onTimeExpired) onTimeExpired();
             setTimeout(() => {
               if (onNextQuestion && activeQuestionIndex < totalQuestions - 1) {
                 onNextQuestion();
               }
             }, 2000);
           }
-          
           return newTime;
         });
       }, 1000);
     }
-
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
+    return () => { if (interval) clearInterval(interval); };
   }, [isRunning, timeLeft, onTimeExpired, onNextQuestion, activeQuestionIndex, totalQuestions]);
-
-  // Pause timer if question is answered or skipped
-  useEffect(() => {
-    if (isQuestionAnswered || isQuestionSkipped) {
-      setIsRunning(false);
-    }
-  }, [isQuestionAnswered, isQuestionSkipped]);
 
   // Format time as MM:SS
   const formatTime = (seconds) => {
@@ -94,74 +74,54 @@ const QuestionTimer = ({
     return 'bg-blue-50 border-blue-200';
   };
 
+  // Get progress percentage
+  const getProgressPercentage = () => {
+    return ((180 - timeLeft) / 180) * 100;
+  };
+
   return (
-    <div className="w-full">
-      {/* Timer Display */}
-      <div className={`flex items-center justify-center p-4 rounded-lg border-2 ${getTimerBgColor()} mb-4`}>
-        <Clock className="h-5 w-5 mr-2 text-gray-600" />
-        <span className={`text-2xl font-bold ${getTimerColor()}`}>
-          {formatTime(timeLeft)}
-        </span>
-        <span className="ml-2 text-sm text-gray-600">
-          remaining
-        </span>
-      </div>
-
-      {/* Warning Alert */}
-      {showWarning && !isExpired && (
-        <Alert className="mb-4 border-orange-200 bg-orange-50">
-          <AlertTriangle className="h-4 w-4 text-orange-600" />
-          <AlertDescription className="text-orange-800">
-            ⚠️ Only 30 seconds remaining! Please submit your answer or skip the question.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Time Expired Alert */}
-      {isExpired && (
-        <Alert className="mb-4 border-red-200 bg-red-50">
-          <AlertTriangle className="h-4 w-4 text-red-600" />
-          <AlertDescription className="text-red-800">
-            ⏰ Time's up! Moving to the next question automatically...
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Question Status */}
-      <div className="text-center mb-4">
-        <div className="text-sm text-gray-600">
-          Question {activeQuestionIndex + 1} of {totalQuestions}
+    <Card className="bg-white shadow border-0 p-0">
+      <CardContent className="py-4 px-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="flex items-center gap-2 text-sm text-gray-700 font-semibold">
+            <Clock className="h-4 w-4 text-gray-500" />
+            {activeQuestionIndex + 1} / {totalQuestions}
+          </span>
+          <span className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-700 font-medium">
+            {isQuestionAnswered ? 'Answered' : isQuestionSkipped ? 'Skipped' : isExpired ? 'Time Expired' : 'In Progress'}
+          </span>
         </div>
-        <div className="flex items-center justify-center gap-2 mt-1">
-          {isQuestionAnswered && (
-            <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-              ✓ Answered
-            </span>
-          )}
-          {isQuestionSkipped && (
-            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
-              ⏭ Skipped
-            </span>
-          )}
-          {!isQuestionAnswered && !isQuestionSkipped && timeLeft > 0 && (
-            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-              ⏱️ In Progress
-            </span>
-          )}
+        <div className={`flex flex-col items-center justify-center rounded-lg border ${getTimerBgColor()} mb-2 py-3 px-2`}>
+          <span className={`text-2xl font-bold ${getTimerColor()} mb-1`}>
+            {formatTime(timeLeft)}
+          </span>
+          <span className="text-xs text-gray-500">Time left</span>
         </div>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-        <div 
-          className={`h-2 rounded-full transition-all duration-1000 ${
-            timeLeft <= 30 ? 'bg-red-500' : 
-            timeLeft <= 60 ? 'bg-orange-500' : 'bg-blue-500'
+        <div className="flex items-center justify-between text-xs mb-1">
+          <span className="text-gray-500">Progress</span>
+          <span className="text-gray-700 font-semibold">{Math.round(getProgressPercentage())}%</span>
+        </div>
+        <Progress 
+          value={getProgressPercentage()} 
+          className={`h-2 transition-all duration-300 rounded-full ${
+            timeLeft <= 30 ? 'bg-red-100' : 
+            timeLeft <= 60 ? 'bg-orange-100' : 'bg-blue-100'
           }`}
-          style={{ width: `${(timeLeft / 180) * 100}%` }}
         />
-      </div>
-    </div>
+        {showWarning && !isExpired && (
+          <div className="mt-2 text-xs text-orange-700 flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            Only 30 seconds left!
+          </div>
+        )}
+        {isExpired && (
+          <div className="mt-2 text-xs text-red-700 flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            Time's up! Moving to next question...
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

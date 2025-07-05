@@ -13,6 +13,13 @@ import { UserButton } from '@clerk/nextjs';
 import { useUser } from '@clerk/nextjs';
 import { generateSessionId, isQuestionAnswered, isQuestionSkipped, calculateSessionProgress, getCurrentAnswer } from '@/utils/sessionUtils';
 import { toast } from 'sonner';
+import { Sheet, SheetContent, SheetClose } from '@/components/ui/sheet';
+import { Menu, Volume2, VolumeX, Eye, EyeOff, Shield, Clock, CheckCircle, SkipForward, ArrowLeft, ArrowRight, Play, Pause, Mic, MicOff, AlertTriangle, Info, Lightbulb, Target, Trophy, Zap } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 function StartInterview({params}) {
     // Unwrap params Promise for Next.js 15 compatibility
@@ -26,6 +33,10 @@ function StartInterview({params}) {
     const [userAnswers, setUserAnswers] = useState([]);
     const [loading, setLoading] = useState(true);
     const { user } = useUser();
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [showInstructions, setShowInstructions] = useState(false);
+    const [isQuestionRead, setIsQuestionRead] = useState(false);
+    const [sessionStartTime, setSessionStartTime] = useState(null);
     
     useEffect(()=>{
         if (user?.primaryEmailAddress?.emailAddress) {
@@ -49,6 +60,7 @@ function StartInterview({params}) {
     const initializeSession = async () => {
         try {
             setLoading(true);
+            setSessionStartTime(new Date());
             
             // Generate new session ID for this attempt
             const newSessionId = generateSessionId(
@@ -197,7 +209,7 @@ function StartInterview({params}) {
     };
 
     /**
-     * Handle time expiration for current question
+     * Handle time expired for current question
      */
     const handleTimeExpired = async () => {
         if (!sessionId || !mockInterviewQuestion) return;
@@ -205,24 +217,23 @@ function StartInterview({params}) {
         try {
             const question = mockInterviewQuestion[activeQuestionIndex];
             
-            // Check if already answered or skipped
-            if (isQuestionAnswered(userAnswers, activeQuestionIndex, sessionId) || 
-                isQuestionSkipped(userAnswers, activeQuestionIndex, sessionId)) {
+            // Check if already answered
+            if (isQuestionAnswered(userAnswers, activeQuestionIndex, sessionId)) {
                 return;
             }
 
-            // Auto-skip question when time expires
+            // Save timeout record
             await db.insert(UserAnswer).values({
                 mockIdRef: interviewId,
                 question: question.question,
                 questionIndex: activeQuestionIndex,
                 sessionId: sessionId,
                 userEmail: user?.primaryEmailAddress?.emailAddress,
-                userAns: 'SKIPPED',
-                isSkipped: true,
+                userAns: 'TIMEOUT',
+                isSkipped: false,
                 isAnswered: false,
-                rating: '0', // Zero rating for time-expired questions
-                feedback: 'Question automatically skipped due to time expiration',
+                rating: '0',
+                feedback: 'Question timed out - no answer provided',
                 createdAt: new Date().toISOString(),
                 lastAttemptAt: new Date(),
                 updatedAt: new Date()
@@ -231,10 +242,16 @@ function StartInterview({params}) {
             // Reload answers
             await loadSessionAnswers(sessionId);
             
-            toast.warning('Time expired! Question automatically skipped.');
+            toast.warning('Time expired for this question');
             
+            // Auto-move to next question after 2 seconds
+            setTimeout(() => {
+                if (activeQuestionIndex < mockInterviewQuestion.length - 1) {
+                    setActiveQuestionIndex(activeQuestionIndex + 1);
+                }
+            }, 2000);
         } catch (error) {
-            console.error('Error handling time expiration:', error);
+            console.error('Error handling time expired:', error);
             toast.error('Failed to handle time expiration');
         }
     };
@@ -249,33 +266,25 @@ function StartInterview({params}) {
     };
 
     /**
-     * End session and save final cheating detection data
+     * End the interview session
      */
     const endSession = async () => {
         if (!sessionId) return;
 
         try {
-            const response = await fetch('/api/session-cheating-detection/end', {
+            // End cheating detection session
+            await fetch('/api/session-cheating-detection/end', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     sessionId: sessionId,
-                    mockId: interviewId,
-                    finalDetectionData: {
-                        sessionCompleted: true,
-                        totalQuestions: mockInterviewQuestion?.length || 0,
-                        answeredQuestions: userAnswers.filter(a => a.isAnswered).length,
-                        skippedQuestions: userAnswers.filter(a => a.isSkipped).length,
-                        sessionDuration: Date.now() - (sessionId ? parseInt(sessionId.split('_')[1]) : Date.now())
-                    }
+                    mockId: interviewId
                 })
             });
 
-            if (response.ok) {
-                console.log('Session ended successfully');
-            }
+            console.log('Session ended successfully');
         } catch (error) {
             console.error('Error ending session:', error);
         }
@@ -303,12 +312,42 @@ function StartInterview({params}) {
         return calculateSessionProgress(userAnswers, sessionId, mockInterviewQuestion.length);
     };
 
+    /**
+     * Read question aloud
+     */
+    const readQuestionAloud = () => {
+        if ('speechSynthesis' in window) {
+            const speech = new window.SpeechSynthesisUtterance(mockInterviewQuestion?.[activeQuestionIndex]?.question);
+            speech.rate = 0.9;
+            speech.pitch = 1;
+            window.speechSynthesis.speak(speech);
+            setIsQuestionRead(true);
+        }
+    };
+
+    /**
+     * Calculate session duration
+     */
+    const getSessionDuration = () => {
+        if (!sessionStartTime) return '00:00';
+        const duration = Math.floor((new Date() - sessionStartTime) / 1000);
+        const minutes = Math.floor(duration / 60);
+        const seconds = duration % 60;
+        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    };
+
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#fbf9f9] flex items-center justify-center">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#be3144] mx-auto mb-4"></div>
-                    <p className="text-gray-600">Initializing interview session...</p>
+            <div className="min-h-screen bg-gradient-to-br from-[#fbf9f9] to-[#f1e9ea] flex items-center justify-center">
+                <div className="text-center space-y-6">
+                    <div className="relative">
+                        <div className="animate-spin rounded-full h-16 w-16 border-4 border-[#be3144] border-t-transparent mx-auto"></div>
+                        <div className="absolute inset-0 rounded-full border-4 border-[#f05941] border-t-transparent animate-ping opacity-20"></div>
+                    </div>
+                    <div className="space-y-2">
+                        <h3 className="text-xl font-semibold text-gray-800">Initializing Interview Session</h3>
+                        <p className="text-gray-600">Setting up your interview environment...</p>
+                    </div>
                 </div>
             </div>
         );
@@ -317,161 +356,283 @@ function StartInterview({params}) {
     const progress = getSessionProgress();
 
     return (
-        <div className="min-h-screen bg-[#fbf9f9] flex flex-col">
-            {/* Custom Interview Header */}
-            <header className="sticky top-0 z-50 bg-[#FBF1EE] border-b border-[#f1e9ea] shadow-sm py-3 px-6 flex items-center justify-between">
-                <div className="flex items-center gap-2 group flex-shrink-0">
-                    <div className="w-10 h-10 flex items-center justify-center overflow-hidden">
-                        <Image src={'/logo.png'} width={40} height={40} alt='logo' className="object-contain group-hover:scale-105 transition-transform duration-300" />
+        <TooltipProvider>
+            <div className="min-h-screen bg-gradient-to-br from-[#fbf9f9] to-[#f1e9ea] flex flex-col">
+                {/* Enhanced Header */}
+                <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm py-4 px-6">
+                    <div className="max-w-7xl mx-auto flex items-center justify-between">
+                        <div className="flex items-center gap-3 group">
+                            <div className="relative w-12 h-12 flex items-center justify-center overflow-hidden">
+                                <Image src={'/logo.png'} width={48} height={48} alt='logo' className="object-contain group-hover:scale-110 transition-transform duration-300" />
+                                <div className="absolute inset-0 bg-gradient-to-r from-[#be3144] to-[#f05941] opacity-0 group-hover:opacity-20 rounded-full transition-opacity duration-300"></div>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="font-bold text-xl md:text-2xl bg-gradient-to-r from-[#be3144] to-[#f05941] bg-clip-text text-transparent">I-Hire</span>
+                                <span className="text-xs text-gray-500">AI-Powered Interviews</span>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-4">
+                            {/* Session Duration */}
+                            <div className="hidden md:flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg">
+                                <Clock className="w-4 h-4 text-gray-600" />
+                                <span className="text-sm font-medium text-gray-700">{getSessionDuration()}</span>
+                            </div>
+                            
+                            {/* Progress Indicator */}
+                            <div className="hidden md:flex items-center gap-2">
+                                <div className="w-24 bg-gray-200 rounded-full h-2">
+                                    <div 
+                                        className="h-2 rounded-full bg-gradient-to-r from-[#be3144] to-[#f05941] transition-all duration-300"
+                                        style={{ width: `${progress.progress}%` }}
+                                    />
+                                </div>
+                                <span className="text-sm font-medium text-gray-700">{progress.progress}%</span>
+                            </div>
+                            
+                            <UserButton 
+                                afterSignOutUrl="/"
+                                appearance={{
+                                    elements: {
+                                        avatarBox: "w-10 h-10 ring-2 ring-gray-200 hover:ring-[#be3144] transition-all duration-300",
+                                        userButtonPopoverCard: "shadow-lg border border-gray-200",
+                                        userPreviewAvatarBox: "w-12 h-12"
+                                    }
+                                }}
+                            />
+                        </div>
                     </div>
-                    <span className="font-bold text-lg md:text-2xl bg-gradient-to-r from-[#be3144] to-[#f05941] bg-clip-text text-transparent transition-all duration-300">I-Hire</span>
-                </div>
-                <div className="flex items-center gap-4 flex-shrink-0 ml-2">
-                    <UserButton 
-                        afterSignOutUrl="/"
-                        appearance={{
-                            elements: {
-                                avatarBox: "w-10 h-10",
-                                userButtonPopoverCard: "shadow-lg border border-gray-200",
-                                userPreviewAvatarBox: "w-12 h-12"
-                            }
-                        }}
-                    />
-                </div>
-            </header>
+                </header>
 
-            {/* Enhanced Progress Bar */}
-            <div className="w-full max-w-6xl mx-auto px-2 md:px-8 mt-4 mb-4">
-                <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-600">
-                        Session Progress: {progress.answered} answered, {progress.skipped} skipped
-                    </span>
-                    <span className="text-sm font-medium text-gray-600">
-                        {progress.progress}% Complete
-                    </span>
-                </div>
-                <div className="h-6 bg-gray-100 rounded-full shadow overflow-hidden">
-                    <div
-                        className="h-6 rounded-full bg-gradient-to-r from-[#be3144] to-[#f05941] transition-all duration-300"
-                        style={{ width: `${progress.progress}%` }}
-                    />
-                </div>
-            </div>
+                {/* Floating Action Buttons */}
+                <div className="fixed top-32 right-6 z-50 flex flex-col gap-3">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                className="bg-gradient-to-r from-[#be3144] to-[#f05941] text-white p-3 rounded-full shadow-lg hover:scale-110 transition-all duration-300 hover:shadow-xl"
+                                onClick={() => setDrawerOpen(true)}
+                                aria-label="Open question list"
+                            >
+                                <Menu className="w-6 h-6" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Question Navigator</p>
+                        </TooltipContent>
+                    </Tooltip>
 
-            {/* Main Content */}
-            <main className="flex-1 flex flex-col items-center justify-center px-2 md:px-8 py-6">
-                <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10 items-stretch">
-                    {/* Question */}
-                    <div className="flex flex-col h-full">
-                        <QuestionsSection 
-                            mockInterviewQuestion={mockInterviewQuestion} 
-                            activeQuestionIndex={activeQuestionIndex}
-                        />
-                    </div>
-                    {/* Video/ Audio Recording */}
-                    <div className="flex flex-col h-full">
-                        <RecordAnswerSection
-                            mockInterviewQuestion={mockInterviewQuestion} 
-                            activeQuestionIndex={activeQuestionIndex}
-                            interviewData={interviewData}
-                            sessionId={sessionId}
-                            userEmail={user?.primaryEmailAddress?.emailAddress}
-                            onAnswerSubmitted={loadSessionAnswers}
-                            currentAnswer={getCurrentAnswer(userAnswers, activeQuestionIndex, sessionId)}
-                        />
-                    </div>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                className="bg-white text-gray-700 p-3 rounded-full shadow-lg hover:scale-110 transition-all duration-300 hover:shadow-xl border border-gray-200"
+                                onClick={() => setShowInstructions((prev) => !prev)}
+                                aria-label="Toggle instructions"
+                            >
+                                <Info className="w-6 h-6" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Toggle Instructions</p>
+                        </TooltipContent>
+                    </Tooltip>
                 </div>
 
-                {/* Question Timer */}
-                <div className="w-full max-w-2xl mx-auto mt-6">
-                    <QuestionTimer
+                {/* Main Content */}
+                <main className="flex-1 flex flex-col items-center justify-center px-4 md:px-8 py-6">
+                  <div className="w-full max-w-6xl mx-auto flex flex-col md:flex-row gap-8">
+                    {/* Left: Question Card, Timer, Navigation */}
+                    <div className="flex-1 min-w-[320px] max-w-xl flex flex-col gap-6">
+                      {/* Question Card */}
+                      <Card className="bg-white shadow-xl border-0">
+                        <CardHeader className="pb-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-gradient-to-r from-[#be3144] to-[#f05941] rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                {activeQuestionIndex + 1}
+                              </div>
+                              <div>
+                                <CardTitle className="text-lg text-gray-900">
+                                  Question {activeQuestionIndex + 1} of {mockInterviewQuestion?.length || 0}
+                                </CardTitle>
+                                <CardDescription className="text-gray-600">
+                                  {isCurrentQuestionAnswered() ? '✓ Answered' : 
+                                    isCurrentQuestionSkipped() ? '⏭ Skipped' : '⏱️ In Progress'}
+                                </CardDescription>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                                    onClick={readQuestionAloud}
+                                    aria-label="Read question aloud"
+                                  >
+                                    {isQuestionRead ? <VolumeX className="w-5 h-5 text-gray-600" /> : <Volume2 className="w-5 h-5 text-gray-600" />}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{isQuestionRead ? 'Question read' : 'Read question aloud'}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <p className="text-gray-900 text-lg leading-relaxed">
+                              {mockInterviewQuestion?.[activeQuestionIndex]?.question}
+                            </p>
+                          </div>
+                          {/* Enhanced Note Section */}
+                          <Alert className="border-yellow-200 bg-yellow-50">
+                            <Lightbulb className="h-4 w-4 text-yellow-600" />
+                            <AlertDescription className="text-yellow-800">
+                              <strong>Tip:</strong> {process.env.NEXT_PUBLIC_QUESTION_NOTE || 'Click "Record Answer" when you\'re ready to respond. Speak clearly and look at the camera.'}
+                            </AlertDescription>
+                          </Alert>
+                          {/* Collapsible Interview Tips (moved here) */}
+                          <div className="mt-2">
+                            <div
+                              className="cursor-pointer select-none flex items-center gap-2 px-4 py-2 rounded-t-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 transition"
+                              onClick={() => setShowInstructions((prev) => !prev)}
+                              aria-expanded={showInstructions}
+                              tabIndex={0}
+                              role="button"
+                            >
+                              <Lightbulb className="w-5 h-5 text-blue-600" />
+                              <span className="font-semibold text-blue-900 text-base">Interview Tips</span>
+                              <span className="ml-auto text-blue-600">{showInstructions ? '▲' : '▼'}</span>
+                            </div>
+                            {showInstructions && (
+                              <div className="bg-blue-50 border border-t-0 border-blue-200 rounded-b-lg px-6 py-4 animate-fade-in">
+                                <ul className="text-sm text-blue-800 space-y-2 list-disc list-inside">
+                                  <li>Speak clearly and at a moderate pace</li>
+                                  <li>Look directly at the camera when answering</li>
+                                  <li>Take a moment to think before responding</li>
+                                  <li>You can skip questions if needed</li>
+                                  <li>Each question has a 3-minute time limit</li>
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                      {/* Timer */}
+                      <QuestionTimer
                         activeQuestionIndex={activeQuestionIndex}
                         onTimeExpired={handleTimeExpired}
                         onNextQuestion={handleNextQuestion}
                         isQuestionAnswered={isCurrentQuestionAnswered()}
                         isQuestionSkipped={isCurrentQuestionSkipped()}
                         totalQuestions={mockInterviewQuestion?.length || 0}
-                    />
-                </div>
-
-                {/* Enhanced Navigation Buttons */}
-                <div className="w-full max-w-6xl flex items-center justify-between mt-8 mb-2 px-2">
-                    {/* Previous Button */}
-                    <div>
-                        {activeQuestionIndex > 0 && (
-                            <Button
-                                onClick={handlePreviousQuestion}
-                                variant="outline"
-                                className="px-8 py-3 rounded-full bg-white border border-gray-200 text-[#191011] font-semibold shadow transition hover:scale-105 hover:border-[#be3144] focus:outline-none focus:ring-2 focus:ring-[#be3144] focus:ring-offset-2"
-                            >
-                                Previous Question
-                            </Button>
-                        )}
-                    </div>
-
-                    {/* Center Status */}
-                    <div className="text-center">
-                        <div className="text-sm text-gray-600 mb-1">
-                            Question {activeQuestionIndex + 1} of {mockInterviewQuestion?.length || 0}
+                      />
+                      {/* Compact Progress Summary */}
+                      <div className="flex items-center justify-between bg-white/80 rounded-lg px-4 py-2 shadow border mb-2">
+                        <div className="flex items-center gap-3">
+                          <Target className="w-5 h-5 text-[#be3144]" />
+                          <span className="text-xs font-medium text-gray-700">Progress</span>
+                          <span className="flex items-center gap-1 text-xs text-green-700"><CheckCircle className="w-4 h-4" />{progress.answered} answered</span>
+                          <span className="flex items-center gap-1 text-xs text-yellow-700"><SkipForward className="w-4 h-4" />{progress.skipped} skipped</span>
                         </div>
-                        <div className="flex items-center gap-2 justify-center">
+                        <div className="flex items-center gap-1 text-xs font-bold text-[#be3144]">
+                          <Trophy className="w-4 h-4" />
+                          {progress.progress}%
+                        </div>
+                      </div>
+                      {/* Navigation */}
+                      <div className="flex items-center justify-between mt-2">
+                        {/* Previous Button */}
+                        <div>
+                          {activeQuestionIndex > 0 && (
+                            <Button
+                              onClick={handlePreviousQuestion}
+                              variant="outline"
+                              className="px-6 py-3 rounded-full bg-white border-gray-200 text-gray-700 font-semibold shadow-md hover:scale-105 hover:border-[#be3144] hover:text-[#be3144] transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#be3144] focus:ring-offset-2"
+                            >
+                              <ArrowLeft className="w-4 h-4 mr-2" />
+                              Previous
+                            </Button>
+                          )}
+                        </div>
+                        {/* Center Status */}
+                        <div className="text-center space-y-2">
+                          <div className="flex items-center gap-2 justify-center">
                             {isCurrentQuestionAnswered() && (
-                                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-                                    ✓ Answered
-                                </span>
+                              <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Answered
+                              </Badge>
                             )}
                             {isCurrentQuestionSkipped() && (
-                                <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
-                                    ⏭ Skipped
-                                </span>
+                              <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">
+                                <SkipForward className="w-3 h-3 mr-1" />
+                                Skipped
+                              </Badge>
+                            )}
+                            {!isCurrentQuestionAnswered() && !isCurrentQuestionSkipped() && (
+                              <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
+                                <Clock className="w-3 h-3 mr-1" />
+                                In Progress
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        {/* Next/Skip/End Buttons */}
+                        <div className="flex gap-3">
+                          {!isCurrentQuestionAnswered() && !isCurrentQuestionSkipped() && (
+                            <Button
+                              onClick={handleSkipQuestion}
+                              variant="outline"
+                              className="px-6 py-3 rounded-full bg-yellow-50 border-yellow-200 text-yellow-700 font-semibold shadow-md hover:scale-105 hover:bg-yellow-100 transition-all duration-300"
+                            >
+                              <SkipForward className="w-4 h-4 mr-2" />
+                              Skip
+                            </Button>
+                          )}
+                          {(isCurrentQuestionAnswered() || isCurrentQuestionSkipped()) && 
+                            activeQuestionIndex < (mockInterviewQuestion?.length || 1) - 1 && (
+                              <Button
+                                onClick={handleNextQuestion}
+                                className="px-6 py-3 rounded-full bg-gradient-to-r from-[#be3144] to-[#f05941] text-white font-semibold shadow-lg hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#be3144] focus:ring-offset-2"
+                              >
+                                Next
+                                <ArrowRight className="w-4 h-4 ml-2" />
+                              </Button>
+                            )}
+                          {activeQuestionIndex === (mockInterviewQuestion?.length || 1) - 1 && 
+                            (isCurrentQuestionAnswered() || isCurrentQuestionSkipped()) && 
+                            interviewData?.mockId && (
+                              <Button 
+                                onClick={async () => {
+                                  await endSession();
+                                  window.location.href = `/interview/${interviewData.mockId}/feedback?sessionId=${sessionId}`;
+                                }}
+                                className="px-6 py-3 rounded-full bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold shadow-lg hover:scale-105 transition-all duration-300"
+                              >
+                                <Trophy className="w-4 h-4 mr-2" />
+                                End Interview
+                              </Button>
                             )}
                         </div>
+                      </div>
                     </div>
-
-                    {/* Next/Skip/End Buttons */}
-                    <div className="flex gap-4">
-                        {/* Skip Button - Show if question is not answered and not skipped */}
-                        {!isCurrentQuestionAnswered() && !isCurrentQuestionSkipped() && (
-                            <Button
-                                onClick={handleSkipQuestion}
-                                variant="outline"
-                                className="px-6 py-3 rounded-full bg-yellow-50 border-yellow-200 text-yellow-700 font-semibold shadow hover:scale-105 hover:bg-yellow-100 transition"
-                            >
-                                Skip Question
-                            </Button>
-                        )}
-
-                        {/* Next Button - Show only if question is answered or skipped */}
-                        {(isCurrentQuestionAnswered() || isCurrentQuestionSkipped()) && 
-                         activeQuestionIndex < (mockInterviewQuestion?.length || 1) - 1 && (
-                            <Button
-                                onClick={handleNextQuestion}
-                                className="px-8 py-3 rounded-full bg-gradient-to-r from-[#be3144] to-[#f05941] text-white font-semibold shadow-lg hover:scale-105 transition focus:outline-none focus:ring-2 focus:ring-[#be3144] focus:ring-offset-2"
-                            >
-                                Next Question
-                            </Button>
-                        )}
-
-                        {/* End Interview Button */}
-                        {activeQuestionIndex === (mockInterviewQuestion?.length || 1) - 1 && 
-                         (isCurrentQuestionAnswered() || isCurrentQuestionSkipped()) && 
-                         interviewData?.mockId && (
-                            <Button 
-                                onClick={async () => {
-                                    // End session before navigating
-                                    await endSession();
-                                    // Navigate to feedback page
-                                    window.location.href = `/interview/${interviewData.mockId}/feedback?sessionId=${sessionId}`;
-                                }}
-                                className="px-6 py-3 rounded-full bg-gradient-to-r from-[#be3144] to-[#f05941] text-white font-semibold shadow-lg hover:scale-105 transition"
-                            >
-                                End Interview
-                            </Button>
-                        )}
+                    {/* Right: Camera/Answer Section */}
+                    <div className="flex-1 min-w-[320px] max-w-xl flex flex-col gap-6">
+                      <RecordAnswerSection
+                        mockInterviewQuestion={mockInterviewQuestion}
+                        activeQuestionIndex={activeQuestionIndex}
+                        interviewData={interviewData}
+                        sessionId={sessionId}
+                        userEmail={user?.primaryEmailAddress?.emailAddress}
+                        onAnswerSubmitted={loadSessionAnswers}
+                        currentAnswer={getCurrentAnswer(userAnswers, activeQuestionIndex, sessionId)}
+                      />
                     </div>
-                </div>
-            </main>
-        </div>
+                  </div>
+                </main>
+            </div>
+        </TooltipProvider>
     )
 }
 
