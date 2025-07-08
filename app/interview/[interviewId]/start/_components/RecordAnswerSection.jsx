@@ -199,7 +199,9 @@ function RecordAnswerSection({
           return isNaN(score) ? 5.0 : score;
         })(),
         detailedScores: evaluationResult.detailed_scores || {},
-        combinedScore: evaluationResult.combined_score?.toString() || "5"
+        combinedScore: evaluationResult.combined_score?.toString() || "5",
+        // Store the original combined_score for database saving
+        originalCombinedScore: evaluationResult.combined_score
       };
     } catch (error) {
       console.error("Feedback generation failed", error);
@@ -284,7 +286,15 @@ function RecordAnswerSection({
         createdAt: new Date().toISOString(),
         lastAttemptAt: new Date(),
         updatedAt: new Date(),
-        retryCount: retryCount
+        retryCount: retryCount,
+        // Add missing evaluation fields
+        detailedEvaluation: feedbackResult?.detailedEvaluation || {},
+        evaluationScore: feedbackResult?.evaluationScore?.toString() || '5',
+        detailedScores: feedbackResult?.detailedScores || {},
+        combinedScore: feedbackResult?.originalCombinedScore?.toString() || feedbackResult?.combinedScore?.toString() || '5',
+        overallAssessment: feedbackResult?.overallAssessment || 'Good response with room for improvement',
+        interview_type: interviewType,
+        language: feedbackResult?.language || 'en'
       };
 
       await db.insert(UserAnswer).values(answerData);

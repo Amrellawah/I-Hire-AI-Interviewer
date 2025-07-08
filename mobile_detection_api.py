@@ -13,15 +13,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-
-# Configure CORS for Vercel deployment
-CORS(app, origins=[
-    "https://*.vercel.app",  # All Vercel domains
-    "https://*.vercel.com",  # Vercel preview domains
-    "http://localhost:3000", # Local development
-    "http://localhost:3001", # Alternative local port
-    "*"  # For testing (remove in production)
-])
+CORS(app)
 
 # Global model variable
 model = None

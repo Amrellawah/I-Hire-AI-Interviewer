@@ -10,11 +10,8 @@ export async function POST(request) {
       }, { status: 400 });
     }
     
-    // Get backend URL from environment variable or use localhost for development
-    const backendUrl = process.env.YOLO_BACKEND_URL || 'http://localhost:5000';
-    
     // Forward request to Python backend
-    const pythonResponse = await fetch(`${backendUrl}/api/detect-mobile`, {
+    const pythonResponse = await fetch('http://localhost:5000/api/detect-mobile', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -51,11 +48,8 @@ export async function POST(request) {
 
 export async function GET() {
   try {
-    // Get backend URL from environment variable or use localhost for development
-    const backendUrl = process.env.YOLO_BACKEND_URL || 'http://localhost:5000';
-    
     // Health check for Python backend
-    const pythonResponse = await fetch(`${backendUrl}/api/health`, {
+    const pythonResponse = await fetch('http://localhost:5000/api/health', {
       method: 'GET'
     });
     
@@ -63,8 +57,7 @@ export async function GET() {
       return Response.json({
         status: 'unhealthy',
         backend_available: false,
-        message: 'Python backend not responding',
-        backend_url: backendUrl
+        message: 'Python backend not responding'
       }, { status: 503 });
     }
     
@@ -72,7 +65,6 @@ export async function GET() {
     return Response.json({
       status: 'healthy',
       backend_available: true,
-      backend_url: backendUrl,
       ...result
     });
     
@@ -82,8 +74,7 @@ export async function GET() {
     return Response.json({
       status: 'unhealthy',
       backend_available: false,
-      error: error.message,
-      backend_url: process.env.YOLO_BACKEND_URL || 'http://localhost:5000'
+      error: error.message
     }, { status: 503 });
   }
 } 

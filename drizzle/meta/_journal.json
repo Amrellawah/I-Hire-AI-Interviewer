@@ -169,6 +169,13 @@
       "when": 1751554392607,
       "tag": "0023_solid_secret_warriors",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1751823650925,
+      "tag": "0024_plain_molly_hayes",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,7 @@
 "use client"
 import { db } from '@/utils/db';
 import { MockInterview, UserAnswer } from '@/utils/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import React, { useEffect, useState, use } from 'react'
 import QuestionsSection from './_components/QuestionsSection';
 import RecordAnswerSection from './_components/RecordAnswerSection';
@@ -632,6 +632,20 @@ function StartInterview({params}) {
                   </div>
                 </main>
             </div>
+
+            {/* Question Navigator Sheet */}
+            <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+                <SheetContent side="right" className="w-full sm:w-[400px] p-6">
+                    <QuestionsSection
+                        mockInterviewQuestion={mockInterviewQuestion}
+                        activeQuestionIndex={activeQuestionIndex}
+                        onSelectQuestion={(index) => {
+                            setActiveQuestionIndex(index);
+                            setDrawerOpen(false);
+                        }}
+                    />
+                </SheetContent>
+            </Sheet>
         </TooltipProvider>
     )
 }
