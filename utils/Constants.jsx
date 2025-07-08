@@ -22,6 +22,11 @@ export const SideBarOptions = [
         path:'/dashboard/all-interview'
     },
     {
+        name: 'Chat',
+        icon: MessageCircle,
+        path:'/dashboard/chat'
+    },
+    {
         name: 'Billing',
         icon: WalletCards,
         path:'/billing'
@@ -30,11 +35,6 @@ export const SideBarOptions = [
         name: 'Settings',
         icon: Settings,
         path:'/settings'
-    },
-    {
-        name: 'Chat',
-        icon: MessageCircle,
-        path:'/dashboard/chat'
     },
 ]
 

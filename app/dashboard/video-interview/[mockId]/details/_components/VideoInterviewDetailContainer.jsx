@@ -299,13 +299,29 @@ function VideoInterviewDetailContainer({ interviewDetail, candidateList }) {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 sm:p-6">
-              <div className="text-center py-8">
-                <MessageCircleQuestion className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-600 mb-2">Questions Analysis</h3>
-                <p className="text-gray-500">
-                  Detailed question performance analysis will be available here.
-                </p>
+              {interviewDetail?.questionList && interviewDetail.questionList.length > 0 ? (
+                <div className="space-y-4">
+                  {interviewDetail.questionList.map((q, idx) => (
+                    <div key={idx} className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="font-bold text-[#be3144]">Q{idx + 1}:</span>
+                        <span className="text-gray-900 font-medium">{q.question || q}</span>
+                      </div>
+                      {q.type && (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-[#fbeaec] text-[#be3144]">{q.type}</span>
+                      )}
+                    </div>
+                  ))}
                 </div>
+              ) : (
+                <div className="text-center py-8">
+                  <MessageCircleQuestion className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-600 mb-2">Questions Analysis</h3>
+                  <p className="text-gray-500">
+                    No questions found for this interview.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

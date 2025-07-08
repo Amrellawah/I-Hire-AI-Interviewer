@@ -139,6 +139,7 @@ function StartInterview({params}) {
      */
     const loadSessionAnswers = async (currentSessionId) => {
         try {
+            console.log('Loading session answers for:', currentSessionId);
             const answers = await db.select().from(UserAnswer)
                 .where(and(
                     eq(UserAnswer.mockIdRef, interviewId),
@@ -146,6 +147,7 @@ function StartInterview({params}) {
                 ))
                 .orderBy(UserAnswer.questionIndex);
             
+            console.log('Loaded answers:', answers);
             setUserAnswers(answers);
         } catch (error) {
             console.error('Error loading session answers:', error);
@@ -196,6 +198,54 @@ function StartInterview({params}) {
         } catch (error) {
             console.error('Error skipping question:', error);
             toast.error('Failed to skip question');
+        }
+    };
+
+    /**
+     * Auto-skip unanswered questions when navigating to last question
+     */
+    const autoSkipUnansweredQuestions = async () => {
+        if (!sessionId || !mockInterviewQuestion) return;
+
+        try {
+            let hasChanges = false;
+            
+            // Check all questions except the last one
+            for (let i = 0; i < mockInterviewQuestion.length - 1; i++) {
+                const isAnswered = isQuestionAnswered(userAnswers, i, sessionId);
+                const isSkipped = isQuestionSkipped(userAnswers, i, sessionId);
+                
+                // If question is neither answered nor skipped, skip it
+                if (!isAnswered && !isSkipped) {
+                    const question = mockInterviewQuestion[i];
+                    
+                    await db.insert(UserAnswer).values({
+                        mockIdRef: interviewId,
+                        question: question.question,
+                        questionIndex: i,
+                        sessionId: sessionId,
+                        userEmail: user?.primaryEmailAddress?.emailAddress,
+                        userAns: 'AUTO_SKIPPED',
+                        isSkipped: true,
+                        isAnswered: false,
+                        rating: '0',
+                        feedback: 'Question auto-skipped when navigating to last question',
+                        createdAt: new Date().toISOString(),
+                        lastAttemptAt: new Date(),
+                        updatedAt: new Date()
+                    });
+                    
+                    hasChanges = true;
+                }
+            }
+            
+            if (hasChanges) {
+                await loadSessionAnswers(sessionId);
+                toast.info('Unanswered questions have been auto-skipped');
+            }
+        } catch (error) {
+            console.error('Error auto-skipping questions:', error);
+            toast.error('Failed to auto-skip questions');
         }
     };
 
@@ -580,6 +630,7 @@ function StartInterview({params}) {
                         </div>
                         {/* Next/Skip/End Buttons */}
                         <div className="flex gap-3">
+                          {/* Show Skip button only if question is not answered and not skipped */}
                           {!isCurrentQuestionAnswered() && !isCurrentQuestionSkipped() && (
                             <Button
                               onClick={handleSkipQuestion}
@@ -590,6 +641,8 @@ function StartInterview({params}) {
                               Skip
                             </Button>
                           )}
+                          
+                          {/* Show Next button if question is answered or skipped, and not the last question */}
                           {(isCurrentQuestionAnswered() || isCurrentQuestionSkipped()) && 
                             activeQuestionIndex < (mockInterviewQuestion?.length || 1) - 1 && (
                               <Button
@@ -600,6 +653,8 @@ function StartInterview({params}) {
                                 <ArrowRight className="w-4 h-4 ml-2" />
                               </Button>
                             )}
+                          
+                          {/* Show End Interview button only on the last question if it's answered or skipped */}
                           {activeQuestionIndex === (mockInterviewQuestion?.length || 1) - 1 && 
                             (isCurrentQuestionAnswered() || isCurrentQuestionSkipped()) && 
                             interviewData?.mockId && (
@@ -625,7 +680,10 @@ function StartInterview({params}) {
                         interviewData={interviewData}
                         sessionId={sessionId}
                         userEmail={user?.primaryEmailAddress?.emailAddress}
-                        onAnswerSubmitted={loadSessionAnswers}
+                        onAnswerSubmitted={async () => {
+                          console.log('onAnswerSubmitted called');
+                          await loadSessionAnswers(sessionId);
+                        }}
                         currentAnswer={getCurrentAnswer(userAnswers, activeQuestionIndex, sessionId)}
                       />
                     </div>
@@ -639,7 +697,11 @@ function StartInterview({params}) {
                     <QuestionsSection
                         mockInterviewQuestion={mockInterviewQuestion}
                         activeQuestionIndex={activeQuestionIndex}
-                        onSelectQuestion={(index) => {
+                        onSelectQuestion={async (index) => {
+                            // If navigating to the last question, auto-skip unanswered questions
+                            if (index === (mockInterviewQuestion?.length || 1) - 1) {
+                                await autoSkipUnansweredQuestions();
+                            }
                             setActiveQuestionIndex(index);
                             setDrawerOpen(false);
                         }}

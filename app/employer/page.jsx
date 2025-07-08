@@ -5,9 +5,11 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Briefcase, Star, User, Search, FileText, DollarSign, Zap, ChevronRight, Building2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useUser } from '@clerk/nextjs';
 
 export default function EmployerLandingPage() {
   const router = useRouter();
+  const { user, isLoaded } = useUser();
   const [heroVisible, setHeroVisible] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -36,26 +38,26 @@ export default function EmployerLandingPage() {
           </Link>
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-8">
-            <Link href="/post-job" className="font-semibold transition-colors duration-200 hover:underline">
+            <Link href="/dashboard" className="font-semibold transition-colors duration-200 hover:underline">
+              Dashboard
+            </Link>
+            <Link href="/dashboard/post-job" className="font-semibold transition-colors duration-200 hover:underline">
               Post a Job
             </Link>
-            <Link href="/search-cvs" className="font-semibold transition-colors duration-200 hover:underline">
-              Search CVs
-            </Link>
-            <Link href="/job-descriptions" className="font-semibold transition-colors duration-200 hover:underline">
-              Job Descriptions
-            </Link>
-            <Link href="/pricing" className="font-semibold transition-colors duration-200 hover:underline">
+            <Link href="/billing" className="font-semibold transition-colors duration-200 hover:underline">
               Pricing Plans
             </Link>
           </nav>
           <div className="flex items-center gap-4">
-            <button
-              className={`px-6 py-2 rounded border font-semibold transition-all duration-200 ${scrolled ? 'border-gray-400 text-gray-900 bg-transparent hover:bg-gray-100' : 'border-white text-white bg-transparent hover:bg-white/10'}`}
-              onClick={() => router.push('/sign-in')}
-            >
-              Log in
-            </button>
+            {/* Show login button only if user is not signed in */}
+            {isLoaded && !user && (
+              <button
+                className={`px-6 py-2 rounded border font-semibold transition-all duration-200 ${scrolled ? 'border-gray-400 text-gray-900 bg-transparent hover:bg-gray-100' : 'border-white text-white bg-transparent hover:bg-white/10'}`}
+                onClick={() => router.push('/sign-in')}
+              >
+                Log in
+              </button>
+            )}
             {/* Mobile menu button */}
             <button
               className="md:hidden p-2 rounded focus:outline-none focus:ring-2 focus:ring-[#be3144]"
@@ -77,16 +79,18 @@ export default function EmployerLandingPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-              <Link href="/post-job" className="font-semibold py-2 px-2 rounded hover:bg-gray-100" onClick={() => setMobileMenuOpen(false)}>Post a Job</Link>
-              <Link href="/search-cvs" className="font-semibold py-2 px-2 rounded hover:bg-gray-100" onClick={() => setMobileMenuOpen(false)}>Search CVs</Link>
-              <Link href="/job-descriptions" className="font-semibold py-2 px-2 rounded hover:bg-gray-100" onClick={() => setMobileMenuOpen(false)}>Job Descriptions</Link>
-              <Link href="/pricing" className="font-semibold py-2 px-2 rounded hover:bg-gray-100" onClick={() => setMobileMenuOpen(false)}>Pricing Plans</Link>
-              <button
-                className="mt-4 px-6 py-3 rounded-xl border border-[#be3144] text-[#be3144] font-bold bg-white hover:bg-[#f1e9ea] transition-all w-full"
-                onClick={() => { setMobileMenuOpen(false); router.push('/sign-in'); }}
-              >
-                Log in
-              </button>
+              <Link href="/dashboard" className="font-semibold py-2 px-2 rounded hover:bg-gray-100" onClick={() => setMobileMenuOpen(false)}>Dashboard</Link>
+              <Link href="/dashboard/post-job" className="font-semibold py-2 px-2 rounded hover:bg-gray-100" onClick={() => setMobileMenuOpen(false)}>Post a Job</Link>
+              <Link href="/billing" className="font-semibold py-2 px-2 rounded hover:bg-gray-100" onClick={() => setMobileMenuOpen(false)}>Pricing Plans</Link>
+              {/* Show login button only if user is not signed in */}
+              {isLoaded && !user && (
+                <button
+                  className="mt-4 px-6 py-3 rounded-xl border border-[#be3144] text-[#be3144] font-bold bg-white hover:bg-[#f1e9ea] transition-all w-full"
+                  onClick={() => { setMobileMenuOpen(false); router.push('/sign-in'); }}
+                >
+                  Log in
+                </button>
+              )}
             </div>
           </div>
         )}
